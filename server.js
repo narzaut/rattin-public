@@ -203,10 +203,9 @@ const pcAuthToken = crypto.randomBytes(16).toString("hex");
 
 app.get("/api/auth/persist", (req, res) => {
   // Only reachable after nginx basic auth succeeded (or a valid token).
-  // Set a long-lived cookie so the browser doesn't prompt again.
-  // Not HttpOnly — JS needs to read it to avoid re-fetching every page load.
+  // Set a long-lived cookie — nginx skips basic auth when rc_auth cookie exists.
   res.setHeader("Set-Cookie",
-    `pc_auth=${pcAuthToken}; Path=/; Max-Age=${30 * 24 * 60 * 60}; SameSite=Lax`);
+    `rc_auth=${pcAuthToken}; Path=/; Max-Age=${30 * 24 * 60 * 60}; SameSite=Lax`);
   res.json({ ok: true });
 });
 
@@ -255,22 +254,21 @@ app.post("/api/rc/session", (req, res) => {
   res.json({ sessionId, authToken });
 });
 
-// Verify auth token (used by nginx auth_request)
-// Accepts: pc_auth cookie (PC long-lived), X-RC-Token header or rc_token cookie (phone remote)
-app.get("/api/rc/verify", (req, res) => {
-  // PC persistent auth cookie
-  if (req.cookies?.pc_auth === pcAuthToken) return res.status(200).end();
-  // Phone remote token — headers set by nginx from parent request context, or cookie
-  const token = req.headers["x-rc-token"] || req.headers["x-rc-cookie"] || req.cookies?.rc_token;
-  if (token) {
-    for (const s of rcSessions.values()) {
-      if (s.authToken === token) {
-        s.lastActivity = Date.now();
-        return res.status(200).end();
-      }
-    }
-  }
-  res.status(401).end();
+// Phone remote auth — validates token, sets cookie, redirects to /remote
+// This endpoint is exempt from nginx basic auth.
+// The cookie it sets (rc_auth) tells nginx to skip basic auth on all other requests.
+app.get("/api/rc/auth", (req, res) => {
+  const { token, session } = req.query;
+  if (!token || !session) return res.status(400).send("Missing token or session");
+  const s = rcSessions.get(session);
+  if (!s || s.authToken !== token) return res.status(401).send("Invalid token");
+  s.lastActivity = Date.now();
+  // Set a long-lived cookie that nginx checks to skip basic auth
+  res.setHeader("Set-Cookie", [
+    `rc_auth=${token}; Path=/; Max-Age=${60 * 60 * 24}; SameSite=Lax`,
+    `rc_token=${token}; Path=/; Max-Age=${60 * 60 * 24}; SameSite=Lax`,
+  ]);
+  res.redirect(`/remote?session=${session}`);
 });
 
 // Delete session
