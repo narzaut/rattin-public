@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { fetchMovie, fetchTV, fetchSeason, autoPlay, searchStreams, playTorrent, backdrop, poster } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
+import { useRemoteMode } from "../lib/PlayerContext";
 import "./Detail.css";
 
 export default function Detail() {
@@ -9,6 +10,7 @@ export default function Detail() {
   const location = useLocation();
   const navigate = useNavigate();
   const type = location.pathname.startsWith("/tv") ? "tv" : "movie";
+  const { isRemote, sessionId } = useRemoteMode();
   const [data, setData] = useState(null);
   const [selectedSeason, setSelectedSeason] = useState(1);
   const [episodes, setEpisodes] = useState(null);
@@ -52,15 +54,32 @@ export default function Detail() {
     setPickerLoading(false);
   }
 
+  function sendRemoteStart(result, tags) {
+    fetch("/api/rc/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        action: "start-stream",
+        value: { infoHash: result.infoHash, fileIndex: result.fileIndex, title: data.title || data.name, tags },
+      }),
+    }).catch(() => {});
+    navigate(`/remote?session=${sessionId}`);
+  }
+
   async function handlePickStream(stream) {
     setShowPicker(false);
     setPlayState("loading");
     setPlayError("");
     try {
       const result = await playTorrent(stream.infoHash, stream.name, pickerSeason, pickerEpisode);
-      navigate(`/play/${result.infoHash}/${result.fileIndex}`, {
-        state: { tags: result.tags || stream.tags, title: data.title || data.name },
-      });
+      if (isRemote) {
+        sendRemoteStart(result, result.tags || stream.tags);
+      } else {
+        navigate(`/play/${result.infoHash}/${result.fileIndex}`, {
+          state: { tags: result.tags || stream.tags, title: data.title || data.name },
+        });
+      }
     } catch (err) {
       setPlayState("error");
       setPlayError(err.message);
@@ -76,9 +95,13 @@ export default function Detail() {
       const year = parseInt((data.release_date || data.first_air_date || "").slice(0, 4)) || undefined;
       const imdbId = data.imdb_id || data.external_ids?.imdb_id || undefined;
       const result = await autoPlay(title, year, type, season, episode, imdbId);
-      navigate(`/play/${result.infoHash}/${result.fileIndex}`, {
-        state: { tags: result.tags, title: data.title || data.name },
-      });
+      if (isRemote) {
+        sendRemoteStart(result, result.tags);
+      } else {
+        navigate(`/play/${result.infoHash}/${result.fileIndex}`, {
+          state: { tags: result.tags, title: data.title || data.name },
+        });
+      }
     } catch (err) {
       setPlayState("error");
       setPlayError(err.message);
