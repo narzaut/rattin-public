@@ -208,7 +208,11 @@ setInterval(() => {
 }, 60 * 1000);
 
 function sseWrite(res, event, data) {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  try {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  } catch {
+    // Connection already closed
+  }
 }
 
 // Create session
@@ -263,7 +267,9 @@ app.get("/api/rc/events", (req, res) => {
   }
 
   // Heartbeat every 30s
-  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 30000);
+  const heartbeat = setInterval(() => {
+    try { res.write(": heartbeat\n\n"); } catch { clearInterval(heartbeat); }
+  }, 30000);
 
   req.on("close", () => {
     clearInterval(heartbeat);

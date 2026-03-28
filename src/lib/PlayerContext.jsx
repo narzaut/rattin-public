@@ -77,9 +77,12 @@ export function PlayerProvider({ children }) {
 
   const startStream = useCallback((infoHash, fileIndex, title, tags) => {
     const v = videoRef.current;
-    if (active?.infoHash === infoHash && active?.fileIndex === fileIndex) {
+    // Coerce to string for comparison — URL params are strings, API returns numbers
+    if (active?.infoHash === String(infoHash) && String(active?.fileIndex) === String(fileIndex)) {
       return;
     }
+    infoHash = String(infoHash);
+    fileIndex = String(fileIndex);
     const posKey = `playback:${infoHash}:${fileIndex}`;
     const savedPos = parseFloat(sessionStorage.getItem(posKey)) || 0;
     fetch(`/api/set-active/${infoHash}`, { method: "POST" }).catch(() => {});
@@ -205,8 +208,8 @@ export function PlayerProvider({ children }) {
         duration: dur,
         title: active?.title || "",
         tags: active?.tags || [],
-        infoHash: active?.infoHash || "",
-        fileIndex: active?.fileIndex || "",
+        infoHash: active?.infoHash ?? "",
+        fileIndex: active?.fileIndex ?? "",
         subs: subsRef.current,
         activeSub: activeSubRef.current,
         volume: v.volume,
