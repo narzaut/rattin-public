@@ -5,16 +5,17 @@ import "./PairRemoteModal.css";
 export default function PairRemoteModal({ onClose }) {
   const { rcSessionId, setRcSessionId } = usePlayer();
   const [sessionId, setSessionId] = useState(rcSessionId);
+  const [authToken, setAuthToken] = useState(null);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (sessionId) {
-      const url = `${window.location.origin}/remote?session=${sessionId}`;
+    if (sessionId && authToken) {
+      const url = `${window.location.origin}/remote?session=${sessionId}&token=${authToken}`;
       setRemoteUrl(url);
     }
-  }, [sessionId]);
+  }, [sessionId, authToken]);
 
   async function createSession() {
     setCreating(true);
@@ -22,6 +23,7 @@ export default function PairRemoteModal({ onClose }) {
       const res = await fetch("/api/rc/session", { method: "POST" });
       const data = await res.json();
       setSessionId(data.sessionId);
+      setAuthToken(data.authToken);
       setRcSessionId(data.sessionId);
     } catch {
       // ignore

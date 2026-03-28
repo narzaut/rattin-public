@@ -183,6 +183,15 @@ function startTranscode(inputPath, jobKey) {
 }
 
 app.use(express.json());
+app.use((req, res, next) => {
+  req.cookies = {};
+  const hdr = req.headers.cookie;
+  if (hdr) hdr.split(";").forEach((c) => {
+    const [k, ...v] = c.trim().split("=");
+    if (k) req.cookies[k] = decodeURIComponent(v.join("="));
+  });
+  next();
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── Remote Control (SSE + REST relay) ──────────────────────────────────
@@ -218,14 +227,29 @@ function sseWrite(res, event, data) {
 // Create session
 app.post("/api/rc/session", (req, res) => {
   const sessionId = crypto.randomBytes(4).toString("hex");
+  const authToken = crypto.randomBytes(16).toString("hex");
   rcSessions.set(sessionId, {
     playerClient: null,
     remoteClients: [],
     playbackState: null,
     lastActivity: Date.now(),
+    authToken,
   });
   log("info", "RC session created", { sessionId });
-  res.json({ sessionId });
+  res.json({ sessionId, authToken });
+});
+
+// Verify remote auth token (used by nginx auth_request)
+app.get("/api/rc/verify", (req, res) => {
+  const token = req.query.token || req.cookies?.rc_token;
+  if (!token) return res.status(401).end();
+  for (const s of rcSessions.values()) {
+    if (s.authToken === token) {
+      s.lastActivity = Date.now();
+      return res.status(200).end();
+    }
+  }
+  res.status(401).end();
 });
 
 // Delete session

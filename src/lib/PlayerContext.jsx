@@ -14,8 +14,17 @@ export function useRemoteMode() {
     return { isRemote: !!sessionId, sessionId };
   });
 
+  // Ensure rc_token cookie stays alive from localStorage (survives page refresh)
   useEffect(() => {
-    // Re-check on popstate (back/forward navigation)
+    if (state.isRemote) {
+      const token = localStorage.getItem("rc-token");
+      if (token && !document.cookie.includes("rc_token=")) {
+        document.cookie = `rc_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+      }
+    }
+  }, [state.isRemote]);
+
+  useEffect(() => {
     function check() {
       const params = new URLSearchParams(window.location.search);
       const sessionId = params.get("session") || localStorage.getItem("rc-session") || null;

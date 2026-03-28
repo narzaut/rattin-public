@@ -7,6 +7,15 @@ export default function Remote() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sessionId = searchParams.get("session") || localStorage.getItem("rc-session");
+  const token = searchParams.get("token");
+
+  // Set auth token as cookie so nginx bypasses basic auth for the phone
+  useEffect(() => {
+    if (token) {
+      document.cookie = `rc_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+      localStorage.setItem("rc-token", token);
+    }
+  }, [token]);
 
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState(null);
