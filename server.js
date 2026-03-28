@@ -922,16 +922,27 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0) {
   const input = useStdin ? "pipe:0" : filePath;
 
   const doSeek = seekTo > 0;
-  // For complete files, use input seeking (-ss before -i) with copy — near-instant.
-  // For incomplete files (pipe), must re-encode since pipe seeking is unreliable.
-  const canCopySeek = doSeek && !useStdin;
+
+  // Never use copy mode — it causes random freezes and A/V desync due to
+  // B-frame DTS going backward across fragmented MP4 fragment boundaries.
+  const cached = probeCache.get(filePath);
+  const browserSafeCodec = !cached?.videoCodec || cached.videoCodec === "h264";
+  const needsDownscale = !browserSafeCodec && cached?.videoCodec;
+
+  const vFilters = [];
+  if (needsDownscale) vFilters.push("scale=-2:1080");
+  if (!browserSafeCodec) vFilters.push("format=yuv420p");
+
   const args = [
     ...(useStdin ? ["-analyzeduration", "5000000", "-probesize", "5000000"] : []),
     ...(doSeek && !useStdin ? ["-ss", String(seekTo)] : []),
     "-i", input,
     ...(doSeek && useStdin ? ["-ss", String(seekTo)] : []),
-    ...(canCopySeek ? ["-c:v", "copy"] : doSeek ? ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "23"] : ["-c:v", "copy"]),
-    "-c:a", "aac",
+    "-map", "0:v:0", "-map", "0:a:0",
+    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+    ...(vFilters.length > 0 ? ["-vf", vFilters.join(",")] : []),
+    "-c:a", "aac", "-ac", "2",
+    "-max_muxing_queue_size", "1024",
     "-movflags", "frag_keyframe+empty_moov+default_base_moof",
     "-f", "mp4", "-v", "warning",
     "pipe:1",
@@ -966,13 +977,19 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0) {
   ffmpeg.on("close", (code) => {
     if (code && code !== 0 && code !== 255) {
       log("warn", "First attempt failed, retrying with full re-encode");
+      const retryFilters = [];
+      if (needsDownscale) retryFilters.push("scale=-2:1080");
+      retryFilters.push("format=yuv420p");
       const args2 = [
         ...(useStdin ? ["-analyzeduration", "5000000", "-probesize", "5000000"] : []),
         ...(doSeek && !useStdin ? ["-ss", String(seekTo)] : []),
         "-i", input,
         ...(doSeek && useStdin ? ["-ss", String(seekTo)] : []),
+        "-map", "0:v:0", "-map", "0:a:0",
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
-        "-c:a", "aac",
+        "-vf", retryFilters.join(","),
+        "-c:a", "aac", "-ac", "2",
+        "-max_muxing_queue_size", "1024",
         "-movflags", "frag_keyframe+empty_moov+default_base_moof",
         "-f", "mp4", "-v", "warning",
         "pipe:1",
