@@ -771,9 +771,8 @@ app.get("/api/stream/:infoHash/:fileIndex", async (req, res) => {
   if (xcode) {
     const seekTo = parseFloat(req.query.t) || 0;
 
-    // Build seek index in background (ready for subsequent seeks)
-    // Works even for incomplete files — ffprobe only needs the MKV header (first few MB)
-    if (!seekIndexCache.has(jobKey) && !seekIndexPending.has(jobKey) && file.progress > 0.05) {
+    // Build seek index in background (for complete files only — incomplete files have gaps)
+    if (!seekIndexCache.has(jobKey) && !seekIndexPending.has(jobKey) && complete) {
       seekIndexPending.add(jobKey);
       buildSeekIndex(diskPath(torrent, file)).then((index) => {
         seekIndexPending.delete(jobKey);
@@ -787,17 +786,32 @@ app.get("/api/stream/:infoHash/:fileIndex", async (req, res) => {
       });
     }
 
-    // Smart seek: ensure pieces at seek point are on disk, then use fast disk read
-    if (seekTo > 0 && seekIndexCache.has(jobKey)) {
-      const index = seekIndexCache.get(jobKey);
-      const seekPoint = findSeekOffset(index, seekTo);
-      if (seekPoint) {
-        const { byteStart, byteEnd } = getSeekByteRange(seekPoint, file.length);
+    // Smart seek: check if pieces at seek target are on disk → use fast disk read
+    if (seekTo > 0) {
+      // Determine byte offset for the seek target
+      let byteStart = null;
 
-        // Check if pieces are ALREADY on disk (no waiting needed)
+      // Method 1: precise keyframe index (available for complete files)
+      if (seekIndexCache.has(jobKey)) {
+        const seekPoint = findSeekOffset(seekIndexCache.get(jobKey), seekTo);
+        if (seekPoint) byteStart = seekPoint.offset;
+      }
+
+      // Method 2: estimate from duration (works for any file with known duration)
+      if (byteStart === null) {
+        const dur = durationCache.get(jobKey);
+        if (dur && dur > 0) {
+          byteStart = Math.floor((seekTo / dur) * file.length);
+        }
+      }
+
+      if (byteStart !== null) {
+        const byteEnd = Math.min(byteStart + 10 * 1024 * 1024, file.length - 1);
         const pieceLength = torrent.pieceLength;
         const firstPiece = Math.floor((file.offset + byteStart) / pieceLength);
         const lastPiece = Math.floor((file.offset + byteEnd) / pieceLength);
+
+        // Check if pieces are already on disk
         let piecesReady = true;
         for (let i = firstPiece; i <= lastPiece; i++) {
           if (!torrent.bitfield.get(i)) { piecesReady = false; break; }
@@ -805,22 +819,20 @@ app.get("/api/stream/:infoHash/:fileIndex", async (req, res) => {
 
         if (piecesReady) {
           // Fast path: pieces on disk → input seeking + copy mode (near-instant)
-          log("info", "Smart seek (pieces ready)", { seekTo, keyframe: seekPoint.time });
-          // Prioritize remaining pieces from seek point forward for continued playback
+          log("info", "Smart seek (instant)", { seekTo, byteStart, method: seekIndexCache.has(jobKey) ? "index" : "estimate" });
           torrent.select(firstPiece, file._endPiece, 1);
           return serveLiveTranscode(torrent, file, true, req, res, seekTo);
         }
 
-        // Slow path: need to fetch pieces first, then serve
-        log("info", "Smart seek (fetching pieces)", { seekTo, keyframe: seekPoint.time });
+        // Pieces not ready — fetch them, then use fast path
+        log("info", "Smart seek (fetching)", { seekTo, byteStart });
         const doSmartSeek = async () => {
           try {
             await waitForPieces(torrent, file, byteStart, byteEnd, 30000);
-            // Pieces arrived — prioritize rest and use disk fast path
             torrent.select(firstPiece, file._endPiece, 1);
             return serveLiveTranscode(torrent, file, true, req, res, seekTo);
           } catch {
-            log("warn", "Smart seek timeout, falling back to pipe", { seekTo });
+            log("warn", "Smart seek timeout, falling back", { seekTo });
             return serveLiveTranscode(torrent, file, complete, req, res, seekTo);
           }
         };
