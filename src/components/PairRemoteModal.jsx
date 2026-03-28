@@ -13,7 +13,7 @@ export default function PairRemoteModal({ onClose }) {
 
   useEffect(() => {
     if (sessionId && authToken) {
-      const url = `${window.location.origin}/remote?session=${sessionId}&token=${authToken}`;
+      const url = `${window.location.origin}/api/rc/auth?session=${sessionId}&token=${authToken}`;
       setRemoteUrl(url);
     }
   }, [sessionId, authToken]);
