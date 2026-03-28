@@ -123,18 +123,27 @@ export default function Player() {
     if (!v) return;
     setLoading(true);
     setLoadingReason("initial");
-    function onCanPlay() { setLoading(false); }
+    function onCanPlay() { setLoading(false); trySubs(); }
     function onWaiting() { setLoading(true); }
-    function onPlaying() { setLoading(false); }
+    function onPlaying() { setLoading(false); trySubs(); }
+    function onLoadedData() { trySubs(); }
+    function trySubs() {
+      if (pendingSubReload.current !== null) {
+        const offset = pendingSubReload.current;
+        pendingSubReload.current = null;
+        reloadActiveSub(offset);
+      }
+    }
     v.addEventListener("canplay", onCanPlay);
     v.addEventListener("waiting", onWaiting);
     v.addEventListener("playing", onPlaying);
-    // If already ready
+    v.addEventListener("loadeddata", onLoadedData);
     if (v.readyState >= 3) setLoading(false);
     return () => {
       v.removeEventListener("canplay", onCanPlay);
       v.removeEventListener("waiting", onWaiting);
       v.removeEventListener("playing", onPlaying);
+      v.removeEventListener("loadeddata", onLoadedData);
     };
   }, [infoHash, fileIndex]);
 
@@ -291,39 +300,46 @@ export default function Player() {
     return name.replace(/\.[^.]+$/, "").split(/[/\\]/).pop();
   }
 
-  function switchSubtitle(val) {
-    setActiveSub(val);
+  function clearAllTracks() {
     const v = videoRef.current;
     if (!v) return;
-    for (const t of v.textTracks) t.mode = "hidden";
-    if (!val) return;
+    for (const t of v.textTracks) t.mode = "disabled";
+    v.querySelectorAll("track").forEach((el) => el.remove());
+  }
 
-    const offsetParam = isLiveRef.current && seekOffsetRef.current > 0 ? `?offset=${seekOffsetRef.current}` : "";
-    let src, label, key;
-    if (val.startsWith("file:")) {
-      const idx = parseInt(val.split(":")[1], 10);
-      src = `/api/subtitle/${infoHash}/${idx}${offsetParam}`;
-      label = "External";
-      key = val;
-    } else if (val.startsWith("embedded:")) {
-      const idx = parseInt(val.split(":")[1], 10);
-      src = `/api/subtitle-extract/${infoHash}/${fileIndex}/${idx}${offsetParam}`;
-      label = "Embedded";
-      key = val;
-    }
-    if (!src) return;
+  function loadSubtitleTrack(src) {
+    const v = videoRef.current;
+    if (!v) return;
+    clearAllTracks();
+    fetch(src)
+      .then((r) => r.ok ? r.text() : null)
+      .then((text) => {
+        if (!text || !activeSubRef.current) return;
+        const blob = new Blob([text], { type: "text/vtt" });
+        const url = URL.createObjectURL(blob);
+        clearAllTracks();
+        const track = document.createElement("track");
+        track.kind = "subtitles";
+        track.src = url;
+        track.label = "Subtitles";
+        track.default = true;
+        v.appendChild(track);
+        track.addEventListener("load", () => {
+          if (track.track) track.track.mode = "showing";
+          URL.revokeObjectURL(url);
+        });
+        setTimeout(() => {
+          if (track.track && track.track.mode !== "showing") track.track.mode = "showing";
+        }, 500);
+      })
+      .catch(() => {});
+  }
 
-    const existing = v.querySelector(`track[data-key="${key}"]`);
-    if (existing) existing.remove();
-    const track = document.createElement("track");
-    track.kind = "subtitles";
-    track.src = src;
-    track.label = label;
-    track.dataset.key = key;
-    track.default = true;
-    v.appendChild(track);
-    track.addEventListener("load", () => { if (track.track) track.track.mode = "showing"; });
-    if (track.track) track.track.mode = "showing";
+  function switchSubtitle(val) {
+    setActiveSub(val);
+    if (!videoRef.current) return;
+    if (!val) { clearAllTracks(); return; }
+    reloadActiveSub(isLiveRef.current ? seekOffsetRef.current : 0);
   }
 
   // Time update — sync to local state AND push to context for mini player
@@ -376,33 +392,16 @@ export default function Player() {
   }
 
   function reloadActiveSub(newOffset) {
-    if (!activeSub) return;
-    const v = videoRef.current;
-    if (!v) return;
-    // Remove all existing tracks and re-add with the new offset
-    for (const t of v.textTracks) t.mode = "hidden";
+    const sub = activeSubRef.current;
+    if (!sub) return;
     const offsetParam = newOffset > 0 ? `?offset=${newOffset}` : "";
-    let src, key;
-    if (activeSub.startsWith("file:")) {
-      const idx = parseInt(activeSub.split(":")[1], 10);
-      src = `/api/subtitle/${infoHash}/${idx}${offsetParam}`;
-      key = activeSub;
-    } else if (activeSub.startsWith("embedded:")) {
-      const idx = parseInt(activeSub.split(":")[1], 10);
-      src = `/api/subtitle-extract/${infoHash}/${fileIndex}/${idx}${offsetParam}`;
-      key = activeSub;
+    let src;
+    if (sub.startsWith("file:")) {
+      src = `/api/subtitle/${infoHash}/${parseInt(sub.split(":")[1], 10)}${offsetParam}`;
+    } else if (sub.startsWith("embedded:")) {
+      src = `/api/subtitle-extract/${infoHash}/${fileIndex}/${parseInt(sub.split(":")[1], 10)}${offsetParam}`;
     }
-    if (!src) return;
-    const existing = v.querySelector(`track[data-key="${key}"]`);
-    if (existing) existing.remove();
-    const track = document.createElement("track");
-    track.kind = "subtitles";
-    track.src = src;
-    track.label = "Subtitles";
-    track.dataset.key = key;
-    track.default = true;
-    v.appendChild(track);
-    track.addEventListener("load", () => { if (track.track) track.track.mode = "showing"; });
+    if (src) loadSubtitleTrack(src);
   }
 
   function seekTo(seconds) {
@@ -418,11 +417,8 @@ export default function Player() {
       v.src = `/api/stream/${infoHash}/${fileIndex}?t=${seconds}`;
       v.play().catch(() => {});
       if (dur > 0) setKnownDuration(dur);
-      // Reload subtitles once ffmpeg actually starts producing frames
-      v.addEventListener("canplay", function onReady() {
-        v.removeEventListener("canplay", onReady);
-        reloadActiveSub(seconds);
-      }, { once: true });
+      // Defer subtitle reload — track must be added after new source loads
+      pendingSubReload.current = seconds;
     } else {
       v.currentTime = seconds;
     }
