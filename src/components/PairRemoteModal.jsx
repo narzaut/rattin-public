@@ -50,7 +50,7 @@ export default function PairRemoteModal({ onClose }) {
     let paths = "";
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++)
-        if (data[y * size + x])
+        if (data[y][x])
           paths += `M${margin + x * mod},${margin + y * mod}h${mod}v${mod}h-${mod}z`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}"><rect width="${total}" height="${total}" fill="#fff" rx="4"/><path d="${paths}" fill="#000"/></svg>`;
   }, [remoteUrl]);
