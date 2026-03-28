@@ -14,6 +14,7 @@ export default function Remote() {
   const [seekDragValue, setSeekDragValue] = useState(0);
   const seekBarRef = useRef(null);
   const esRef = useRef(null);
+  const dragRef = useRef({ dragging: false, value: 0, duration: 0 });
 
   // Persist session
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function Remote() {
     }).catch(() => {});
   }, [sessionId]);
 
-  // Seek bar touch/mouse handling
+  // Seek bar touch/mouse handling — use refs to avoid effect churn
   function getSeekRatio(e) {
     const rect = seekBarRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -54,28 +55,34 @@ export default function Remote() {
 
   function onSeekStart(e) {
     e.preventDefault();
+    dragRef.current.dragging = true;
+    dragRef.current.duration = state?.duration || 0;
     setSeekDragging(true);
     const ratio = getSeekRatio(e);
-    setSeekDragValue(ratio * (state?.duration || 0));
-  }
-
-  function onSeekMove(e) {
-    if (!seekDragging) return;
-    const ratio = getSeekRatio(e);
-    setSeekDragValue(ratio * (state?.duration || 0));
-  }
-
-  function onSeekEnd() {
-    if (!seekDragging) return;
-    setSeekDragging(false);
-    sendCommand("seek", seekDragValue);
+    const val = ratio * dragRef.current.duration;
+    dragRef.current.value = val;
+    setSeekDragValue(val);
   }
 
   // Attach global touch/mouse events for seek dragging
   useEffect(() => {
     if (!seekDragging) return;
-    function move(e) { onSeekMove(e); }
-    function end() { onSeekEnd(); }
+    function move(e) {
+      if (!dragRef.current.dragging) return;
+      const rect = seekBarRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const val = ratio * dragRef.current.duration;
+      dragRef.current.value = val;
+      setSeekDragValue(val);
+    }
+    function end() {
+      if (!dragRef.current.dragging) return;
+      dragRef.current.dragging = false;
+      setSeekDragging(false);
+      sendCommand("seek", dragRef.current.value);
+    }
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", end);
     document.addEventListener("touchmove", move, { passive: true });
@@ -86,7 +93,7 @@ export default function Remote() {
       document.removeEventListener("touchmove", move);
       document.removeEventListener("touchend", end);
     };
-  }, [seekDragging, seekDragValue, state?.duration]);
+  }, [seekDragging, sendCommand]);
 
   if (!sessionId) {
     return (

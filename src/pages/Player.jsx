@@ -159,15 +159,15 @@ export default function Player() {
     };
   }, [infoHash, fileIndex]);
 
-  // Register command handlers for remote control
+  // Register command handlers for remote control (assigned every render to avoid stale closures)
+  if (commandRef) {
+    commandRef.current = {
+      seek: seekTo,
+      seekRelative: (delta) => seekTo(Math.max(0, getEffectiveTime() + delta)),
+      switchSubtitle,
+    };
+  }
   useEffect(() => {
-    if (commandRef) {
-      commandRef.current = {
-        seek: seekTo,
-        seekRelative: (delta) => seekTo(Math.max(0, getEffectiveTime() + delta)),
-        switchSubtitle,
-      };
-    }
     return () => { if (commandRef) commandRef.current = null; };
   }, []);
 
