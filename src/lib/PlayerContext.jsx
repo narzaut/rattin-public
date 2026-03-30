@@ -129,6 +129,9 @@ export function PlayerProvider({ children }) {
     effectiveTimeRef.current = null;
     subsRef.current = [];
     activeSubRef.current = "";
+    // Remove any lingering subtitle tracks from the video element
+    for (const t of v.textTracks) t.mode = "disabled";
+    v.querySelectorAll("track").forEach((el) => el.remove());
     setActive({ infoHash, fileIndex, title, tags });
   }, [active]);
 
@@ -141,6 +144,8 @@ export function PlayerProvider({ children }) {
     }
     v.pause();
     v.src = "";
+    for (const t of v.textTracks) t.mode = "disabled";
+    v.querySelectorAll("track").forEach((el) => el.remove());
     setActive(null);
     setPlaying(false);
     effectiveTimeRef.current = null;
