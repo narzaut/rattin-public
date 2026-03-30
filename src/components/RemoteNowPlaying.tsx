@@ -12,8 +12,9 @@ export default function RemoteNowPlaying() {
   const { isRemote, sessionId } = useRemoteMode();
   const location = useLocation();
   const navigate = useNavigate();
-  const [state, setState] = useState(null);
-  const esRef = useRef(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [state, setState] = useState<any>(null);
+  const esRef = useRef<EventSource | null>(null);
   const lastGood = useRef({ currentTime: 0, duration: 0 });
   const failCount = useRef(0);
 
@@ -29,7 +30,7 @@ export default function RemoteNowPlaying() {
     const es = new EventSource(`/api/rc/events?session=${sessionId}&role=remote`);
     esRef.current = es;
 
-    es.addEventListener("state", (e) => {
+    es.addEventListener("state", (e: MessageEvent) => {
       const parsed = JSON.parse(e.data);
       failCount.current = 0;
       if (parsed.duration > 0) lastGood.current.duration = parsed.duration;
@@ -68,7 +69,7 @@ export default function RemoteNowPlaying() {
       <div className="remote-now-playing-info">
         <div className="remote-now-playing-title">{state.title || "Now Playing"}</div>
         <div className="remote-now-playing-meta">
-          {state.playing ? "Playing" : "Paused"} · {formatTime(ct)} / {formatTime(dur)}
+          {state.playing ? "Playing" : "Paused"} &middot; {formatTime(ct)} / {formatTime(dur)}
         </div>
       </div>
       <button className="remote-now-playing-btn">Controls</button>

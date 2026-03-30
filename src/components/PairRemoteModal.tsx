@@ -3,7 +3,11 @@ import { encode } from "uqr";
 import { usePlayer } from "../lib/PlayerContext";
 import "./PairRemoteModal.css";
 
-export default function PairRemoteModal({ onClose }) {
+interface PairRemoteModalProps {
+  onClose: () => void;
+}
+
+export default function PairRemoteModal({ onClose }: PairRemoteModalProps) {
   const { rcSessionId, setRcSessionId, rcAuthToken, setRcAuthToken } = usePlayer();
   const [sessionId, setSessionId] = useState(rcSessionId);
   const [authToken, setAuthToken] = useState(rcAuthToken);

@@ -8,7 +8,7 @@ export default function MiniPlayer() {
   const { active, playing, currentTime, duration, togglePlay, stopStream, videoRef } = usePlayer();
   const navigate = useNavigate();
   const location = useLocation();
-  const containerRef = useRef();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isOnPlayerPage = location.pathname.startsWith("/play/");
 
@@ -29,8 +29,8 @@ export default function MiniPlayer() {
   if (!active || isOnPlayerPage) return null;
 
   function goFullscreen() {
-    navigate(`/play/${active.infoHash}/${active.fileIndex}`, {
-      state: { tags: active.tags, title: active.title },
+    navigate(`/play/${active!.infoHash}/${active!.fileIndex}`, {
+      state: { tags: active!.tags, title: active!.title },
     });
   }
 

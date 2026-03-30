@@ -3,34 +3,45 @@ import MovieCard from "./MovieCard";
 import { checkAvailability } from "../lib/api";
 import "./ContentRow.css";
 
-export default function ContentRow({ title, fetchFn, filterAvailability = false }) {
-  const [items, setItems] = useState(null);
-  const scrollRef = useRef();
+interface ContentRowProps {
+  title: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fetchFn: () => Promise<any>;
+  filterAvailability?: boolean;
+}
+
+export default function ContentRow({ title, fetchFn, filterAvailability = false }: ContentRowProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [items, setItems] = useState<any[] | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchFn()
-      .then(async (data) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(async (data: any) => {
         if (cancelled) return;
         const results = data.results || [];
         if (!filterAvailability || results.length === 0) {
           setItems(results);
           return;
         }
-        const batch = results.map((r) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const batch = results.map((r: any) => ({
           id: r.id,
           title: r.title || r.name,
           year: parseInt((r.release_date || r.first_air_date || "").slice(0, 4)) || undefined,
           type: r.media_type || (r.first_air_date ? "tv" : "movie"),
         }));
         const available = await checkAvailability(batch);
-        if (!cancelled) setItems(results.filter((r) => available.has(r.id)));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!cancelled) setItems(results.filter((r: any) => available.has(r.id)));
       })
       .catch(() => { if (!cancelled) setItems([]); });
     return () => { cancelled = true; };
   }, []);
 
-  function scroll(dir) {
+  function scroll(dir: number) {
     const el = scrollRef.current;
     if (el) el.scrollBy({ left: dir * 600, behavior: "smooth" });
   }
@@ -41,7 +52,7 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
     <div className="content-row">
       <h2 className="content-row-title">{title}</h2>
       <div className="content-row-wrapper">
-        <button className="content-row-arrow left" onClick={() => scroll(-1)}>‹</button>
+        <button className="content-row-arrow left" onClick={() => scroll(-1)}>&lsaquo;</button>
         <div className="content-row-scroll" ref={scrollRef}>
           {items === null
             ? Array.from({ length: 8 }).map((_, i) => (
@@ -51,7 +62,7 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
               ))
             : items.map((item) => <MovieCard key={item.id} item={item} />)}
         </div>
-        <button className="content-row-arrow right" onClick={() => scroll(1)}>›</button>
+        <button className="content-row-arrow right" onClick={() => scroll(1)}>&rsaquo;</button>
       </div>
     </div>
   );

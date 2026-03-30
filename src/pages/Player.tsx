@@ -15,41 +15,43 @@ export default function Player() {
   const navigate = useNavigate();
   const location = useLocation();
   const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, rcQrRequested, setRcSessionId, setRcAuthToken, introRangeRef, volume } = usePlayer();
-  const tags = location.state?.tags || active?.tags || [];
-  const mediaTitle = location.state?.title || active?.title || "";
-  const preSelectedAudio = location.state?.audioTrack ?? null;
-  const preSelectedSub = location.state?.subtitle ?? null;
-  const videoContainerRef = useRef();
-  const pageRef = useRef();
-  const seekRef = useRef();
-  const hideTimer = useRef();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const state = location.state as any;
+  const tags: string[] = state?.tags || active?.tags || [];
+  const mediaTitle: string = state?.title || active?.title || "";
+  const preSelectedAudio: number | null = state?.audioTrack ?? null;
+  const preSelectedSub: string | null = state?.subtitle ?? null;
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const seekRef = useRef<HTMLDivElement>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const {
     loading, setLoading, loadingReason, setLoadingReason,
-    loadingMsg, currentMessage, pendingSubReload, reloadActiveSubRef, MESSAGES,
-  } = usePlayerLoading(videoRef, { infoHash, fileIndex, reloadActiveSub: null });
+    loadingMsg, currentMessage, pendingSubReload, reloadActiveSubRef, MESSAGES: _MESSAGES,
+  } = usePlayerLoading(videoRef, { infoHash: infoHash!, fileIndex: fileIndex!, reloadActiveSub: null });
 
   const {
-    currentTime, duration, playing, seekOffset,
-    isLiveTranscode, transcodeReady, knownDuration,
+    currentTime, duration, playing,
+    isLiveTranscode: _isLiveTranscode, transcodeReady: _transcodeReady, knownDuration: _knownDuration,
     dlProgress, dlSpeed, numPeers, fileName,
     tooltipTime, tooltipX,
-    seekOffsetRef, isLiveRef, transcodeReadyRef, knownDurRef,
-    getEffectiveTime, getEffectiveDuration,
-    seekTo, handleSeekClick, handleSeekHover, switchToTranscoded,
+    seekOffsetRef, isLiveRef, transcodeReadyRef: _transcodeReadyRef, knownDurRef: _knownDurRef,
+    getEffectiveTime, getEffectiveDuration: _getEffectiveDuration,
+    seekTo, handleSeekClick, handleSeekHover, switchToTranscoded: _switchToTranscoded,
     togglePlay, setTooltipTime,
   } = useSeek(videoRef, {
-    infoHash, fileIndex,
+    infoHash: infoHash!, fileIndex: fileIndex!,
     effectiveTimeRef, dlProgressRef, dlSpeedRef, dlPeersRef,
     activeAudioRef, startStream, mediaTitle, tags,
     setLoading, setLoadingReason, pendingSubReload,
-    seekRef, loading, loadingReason,
+    seekRef,
   });
 
   const {
-    subs, activeSub, switchSubtitle, reloadActiveSub, clearAllTracks,
+    subs, activeSub, switchSubtitle, reloadActiveSub, clearAllTracks: _clearAllTracks,
   } = useSubtitles(videoRef, {
-    infoHash, fileIndex, subsRef, activeSubRef,
+    infoHash: infoHash!, fileIndex: fileIndex!, subsRef, activeSubRef,
     preSelectedSub, isLiveRef, seekOffsetRef,
   });
 
@@ -57,14 +59,14 @@ export default function Player() {
   reloadActiveSubRef.current = reloadActiveSub;
 
   const { audioTracks, activeAudio, switchAudio } = useAudioTracks(videoRef, {
-    infoHash, fileIndex, audioTracksRef, activeAudioRef,
+    infoHash: infoHash!, fileIndex: fileIndex!, audioTracksRef, activeAudioRef,
     preSelectedAudio, getEffectiveTime, isLiveRef,
     setLoading, setLoadingReason, pendingSubReload,
   });
 
   // seekTo is defined below but only used by handleSkipIntro (user-triggered callback)
   const { introRange, showSkipIntro, handleSkipIntro } = useIntro(videoRef, {
-    infoHash, fileIndex, introRangeRef, getEffectiveTime, seekTo, location, mediaTitle,
+    infoHash: infoHash!, fileIndex: fileIndex!, introRangeRef, getEffectiveTime, seekTo, location, mediaTitle,
   });
 
   // Move video element into the fullscreen container
@@ -83,7 +85,7 @@ export default function Player() {
   if (commandRef) {
     commandRef.current = {
       seek: seekTo,
-      seekRelative: (delta) => seekTo(Math.max(0, getEffectiveTime() + delta)),
+      seekRelative: (delta: number) => seekTo(Math.max(0, getEffectiveTime() + delta)),
       switchSubtitle,
       switchAudio,
     };
@@ -107,17 +109,17 @@ export default function Player() {
     return () => document.removeEventListener("mousemove", onMove);
   }, []);
 
-  function handlePageClick(e) {
+  function handlePageClick(e: React.MouseEvent) {
     // If clicking the video area (not a control), toggle play and show controls
-    const tag = e.target.tagName;
+    const tag = (e.target as HTMLElement).tagName;
     if (tag === "BUTTON" || tag === "SELECT" || tag === "OPTION" || tag === "SVG" || tag === "PATH") return;
     togglePlay();
     showControlsBriefly();
   }
 
   useEffect(() => {
-    function onKey(e) {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    function onKey(e: KeyboardEvent) {
+      if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "SELECT") return;
       const v = videoRef.current;
       if (!v) return;
       switch (e.key) {
@@ -178,7 +180,7 @@ export default function Player() {
   }, [rcRemoteConnected]);
 
   // Toast when remote connects/disconnects
-  const [remoteToast, setRemoteToast] = useState(null);
+  const [remoteToast, setRemoteToast] = useState<string | null>(null);
   const prevRemoteConnected = useRef(rcRemoteConnected);
   useEffect(() => {
     if (rcRemoteConnected && !prevRemoteConnected.current) {
@@ -297,7 +299,7 @@ export default function Player() {
             </span>
             {dlProgress < 1 && (
               <span className="player-dl-info">
-                {formatBytes(dlSpeed)}/s · {numPeers} peer{numPeers !== 1 ? "s" : ""} · {Math.round(dlProgress * 100)}%
+                {formatBytes(dlSpeed)}/s &middot; {numPeers} peer{numPeers !== 1 ? "s" : ""} &middot; {Math.round(dlProgress * 100)}%
               </span>
             )}
             <div className="player-spacer" />

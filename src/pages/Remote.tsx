@@ -14,9 +14,9 @@ const S = {
   PLAYER_OFFLINE: "PLAYER_OFFLINE",
   RECONNECTING: "RECONNECTING",
   CONNECTION_LOST: "CONNECTION_LOST",
-};
+} as const;
 
-async function probeSession(sessionId) {
+async function probeSession(sessionId: string): Promise<string> {
   try {
     const res = await fetch(`/api/rc/session/${sessionId}`);
     if (res.status === 404) return "expired";
@@ -33,7 +33,8 @@ export default function Remote() {
   const location = useLocation();
   const sessionId = searchParams.get("session") || localStorage.getItem("rc-session");
   const token = searchParams.get("token");
-  const pendingTitle = location.state?.pendingTitle || null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingTitle = (location.state as any)?.pendingTitle || null;
 
   // Set auth token as cookie so nginx bypasses basic auth for the phone
   useEffect(() => {
@@ -45,22 +46,23 @@ export default function Remote() {
 
   // ── Core state ──
   const [remoteState, setRemoteState] = useState(sessionId ? S.CONNECTING : S.NO_SESSION);
-  const [state, setState] = useState(null); // playback state from PC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [state, setState] = useState<any>(null); // playback state from PC
   const [connectAttempt, setConnectAttempt] = useState(0); // increment to retry SSE
-  const esRef = useRef(null);
+  const esRef = useRef<EventSource | null>(null);
   const failCount = useRef(0);
 
   // ── Optimistic local state ──
-  const [localVolume, setLocalVolume] = useState(null);
-  const localVolumeTimeout = useRef(null);
+  const [localVolume, setLocalVolume] = useState<number | null>(null);
+  const localVolumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [seekDragging, setSeekDragging] = useState(false);
   const [seekDragValue, setSeekDragValue] = useState(0);
-  const seekBarRef = useRef(null);
+  const seekBarRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ dragging: false, value: 0, duration: 0 });
-  const [optimisticPlaying, setOptimisticPlaying] = useState(null);
-  const optimisticPlayingTimeout = useRef(null);
-  const [optimisticSeekTime, setOptimisticSeekTime] = useState(null);
-  const optimisticSeekTimeout = useRef(null);
+  const [optimisticPlaying, setOptimisticPlaying] = useState<boolean | null>(null);
+  const optimisticPlayingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [optimisticSeekTime, setOptimisticSeekTime] = useState<number | null>(null);
+  const optimisticSeekTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Last known good values ──
   const lastGood = useRef({ currentTime: 0, duration: 0 });
@@ -86,7 +88,7 @@ export default function Remote() {
     setShowScanner(true);
   }
 
-  function handleQrScan(url) {
+  function handleQrScan(url: string) {
     setShowScanner(false);
     // Parse session and token from the URL: /api/rc/auth?session=X&token=Y
     try {
@@ -119,14 +121,14 @@ export default function Remote() {
       if (closed) return;
 
       // Probe session first to detect expiry before opening SSE
-      const probe = await probeSession(sessionId);
+      const probe = await probeSession(sessionId!);
       if (closed) return;
       if (probe === "expired") { setRemoteState(S.SESSION_EXPIRED); return; }
 
       const es = new EventSource(`/api/rc/events?session=${sessionId}&role=remote`);
       esRef.current = es;
 
-      es.addEventListener("state", (e) => {
+      es.addEventListener("state", (e: MessageEvent) => {
         const parsed = JSON.parse(e.data);
         failCount.current = 0;
         if (parsed.duration > 0) lastGood.current.duration = parsed.duration;
@@ -164,12 +166,12 @@ export default function Remote() {
         if (failCount.current > 10) {
           es.close();
           // Final probe to distinguish expired vs network
-          const finalProbe = await probeSession(sessionId);
+          const finalProbe = await probeSession(sessionId!);
           if (finalProbe === "expired") setRemoteState(S.SESSION_EXPIRED);
           else setRemoteState(S.CONNECTION_LOST);
         } else if (failCount.current > 2) {
           // Probe to check if session expired during reconnection
-          const midProbe = await probeSession(sessionId);
+          const midProbe = await probeSession(sessionId!);
           if (midProbe === "expired") {
             es.close();
             setRemoteState(S.SESSION_EXPIRED);
@@ -188,7 +190,8 @@ export default function Remote() {
   }, [sessionId, connectAttempt]);
 
   // ── Send command ──
-  const sendCommand = useCallback((action, value) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sendCommand = useCallback((action: string, value?: any) => {
     if (!sessionId) return;
     fetch("/api/rc/command", {
       method: "POST",
@@ -216,37 +219,38 @@ export default function Remote() {
   function handleTogglePlay() {
     const newPlaying = !(state?.playing);
     setOptimisticPlaying(newPlaying);
-    clearTimeout(optimisticPlayingTimeout.current);
+    if (optimisticPlayingTimeout.current) clearTimeout(optimisticPlayingTimeout.current);
     optimisticPlayingTimeout.current = setTimeout(() => setOptimisticPlaying(null), 3000);
     sendCommand("toggle-play");
   }
 
-  function handleVolumeChange(e) {
+  function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const vol = parseFloat(e.target.value);
     setLocalVolume(vol);
     sendCommand("volume", vol);
-    clearTimeout(localVolumeTimeout.current);
+    if (localVolumeTimeout.current) clearTimeout(localVolumeTimeout.current);
     localVolumeTimeout.current = setTimeout(() => setLocalVolume(null), 2000);
   }
 
-  function handleSkip(delta) {
+  function handleSkip(delta: number) {
     const ct = getDisplayTime();
     const dur = getDisplayDuration();
     const target = Math.max(0, Math.min(dur, ct + delta));
     setOptimisticSeekTime(target);
-    clearTimeout(optimisticSeekTimeout.current);
+    if (optimisticSeekTimeout.current) clearTimeout(optimisticSeekTimeout.current);
     optimisticSeekTimeout.current = setTimeout(() => setOptimisticSeekTime(null), 5000);
     sendCommand("seek-relative", delta);
   }
 
   // ── Seek bar ──
-  function getSeekRatio(e) {
+  function getSeekRatio(e: React.MouseEvent | React.TouchEvent) {
+    if (!seekBarRef.current) return 0;
     const rect = seekBarRef.current.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
   }
 
-  function onSeekStart(e) {
+  function onSeekStart(e: React.MouseEvent | React.TouchEvent) {
     e.preventDefault();
     dragRef.current.dragging = true;
     dragRef.current.duration = getDisplayDuration();
@@ -259,11 +263,11 @@ export default function Remote() {
 
   useEffect(() => {
     if (!seekDragging) return;
-    function move(e) {
+    function move(e: MouseEvent | TouchEvent) {
       if (!dragRef.current.dragging) return;
       const rect = seekBarRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       const val = ratio * dragRef.current.duration;
       dragRef.current.value = val;
@@ -275,7 +279,7 @@ export default function Remote() {
       setSeekDragging(false);
       const seekTime = dragRef.current.value;
       setOptimisticSeekTime(seekTime);
-      clearTimeout(optimisticSeekTimeout.current);
+      if (optimisticSeekTimeout.current) clearTimeout(optimisticSeekTimeout.current);
       optimisticSeekTimeout.current = setTimeout(() => setOptimisticSeekTime(null), 5000);
       sendCommand("seek", seekTime);
     }
@@ -292,24 +296,24 @@ export default function Remote() {
   }, [seekDragging, sendCommand]);
 
   // ── Display helpers ──
-  function getDisplayTime() {
+  function getDisplayTime(): number {
     if (seekDragging) return seekDragValue;
     if (optimisticSeekTime !== null) return optimisticSeekTime;
     const st = state?.currentTime || 0;
     return st > 0 ? st : lastGood.current.currentTime;
   }
 
-  function getDisplayDuration() {
+  function getDisplayDuration(): number {
     const sd = state?.duration || 0;
     return sd > 0 ? sd : lastGood.current.duration;
   }
 
-  function getDisplayPlaying() {
+  function getDisplayPlaying(): boolean {
     if (optimisticPlaying !== null) return optimisticPlaying;
     return state?.playing ?? false;
   }
 
-  function getDisplayVolume() {
+  function getDisplayVolume(): number {
     if (localVolume !== null) return localVolume;
     return state?.volume ?? 1;
   }
@@ -453,7 +457,7 @@ export default function Remote() {
   const progress = dur > 0 ? (ct / dur) * 100 : 0;
   const dlPct = (state?.dlProgress ?? 1) * 100;
   const isPlaying = getDisplayPlaying();
-  const volume = getDisplayVolume();
+  const displayVolume = getDisplayVolume();
 
   return (
     <div className={`remote-page ${isReconnecting ? "remote-dimmed" : ""}`}>
@@ -474,7 +478,7 @@ export default function Remote() {
         <h2 className="remote-title">{state?.title || "Playing"}</h2>
         {state?.tags?.length > 0 && (
           <div className="remote-tags">
-            {state.tags.map((t) => <span key={t} className="remote-tag">{t}</span>)}
+            {state.tags.map((t: string) => <span key={t} className="remote-tag">{t}</span>)}
           </div>
         )}
       </div>
@@ -547,7 +551,7 @@ export default function Remote() {
           type="range"
           className="remote-volume-slider"
           min="0" max="1" step="0.05"
-          value={volume}
+          value={displayVolume}
           onChange={handleVolumeChange}
           disabled={isReconnecting}
         />
@@ -562,7 +566,8 @@ export default function Remote() {
             disabled={isReconnecting}
           >
             <option value="">Subtitles Off</option>
-            {state.subs.map((s) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {state.subs.map((s: any) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
@@ -577,7 +582,8 @@ export default function Remote() {
             onChange={(e) => sendCommand("audio", parseInt(e.target.value, 10))}
             disabled={isReconnecting}
           >
-            {state.audioTracks.map((t) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {state.audioTracks.map((t: any) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>

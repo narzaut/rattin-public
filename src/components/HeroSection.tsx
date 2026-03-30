@@ -2,7 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { backdrop } from "../lib/api";
 import "./HeroSection.css";
 
-export default function HeroSection({ item }) {
+interface HeroSectionProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: any;
+}
+
+export default function HeroSection({ item }: HeroSectionProps) {
   const navigate = useNavigate();
   if (!item) return <div className="hero skeleton" style={{ height: "70vh" }} />;
 

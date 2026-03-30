@@ -3,7 +3,13 @@ import { poster } from "../lib/api";
 import { ratingColor } from "../lib/utils";
 import "./MovieCard.css";
 
-export default function MovieCard({ item }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface MovieCardProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: any;
+}
+
+export default function MovieCard({ item }: MovieCardProps) {
   const navigate = useNavigate();
   const type = item.media_type || (item.first_air_date ? "tv" : "movie");
   const title = item.title || item.name;
