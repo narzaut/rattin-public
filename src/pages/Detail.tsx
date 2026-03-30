@@ -576,7 +576,7 @@ export default function Detail() {
                       <div className="picker-item-tags">
                         {s.seasonPack && <span className="picker-tag season-pack">Season Pack</span>}
                         {s.tags.map((t: string) => (
-                          <span key={t} className="picker-tag">{t}</span>
+                          <span key={t} className={`picker-tag${t === "Native" ? " native" : ""}`}>{t === "Native" ? "Full Seek" : t}</span>
                         ))}
                       </div>
                     </div>

@@ -574,6 +574,11 @@
   color: var(--accent-bright);
 }
 
+.picker-tag.native {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--green);
+}
+
 .picker-item-meta {
   display: flex;
   align-items: center;
