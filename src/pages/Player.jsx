@@ -20,7 +20,7 @@ export default function Player() {
   const { infoHash, fileIndex } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef, rcSessionId, rcAuthToken, rcRemoteConnected } = usePlayer();
+  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected } = usePlayer();
   const tags = location.state?.tags || active?.tags || [];
   const mediaTitle = location.state?.title || active?.title || "";
   const videoContainerRef = useRef();
@@ -200,6 +200,8 @@ export default function Player() {
         if (!data.files) return;
         setDlSpeed(data.downloadSpeed || 0);
         setNumPeers(data.numPeers || 0);
+        dlSpeedRef.current = data.downloadSpeed || 0;
+        dlPeersRef.current = data.numPeers || 0;
         const file = data.files.find((f) => f.index === Number(fileIndex));
         if (file) {
           setDlProgress(file.progress || 0);

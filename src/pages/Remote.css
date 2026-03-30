@@ -347,6 +347,24 @@
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
+/* ── Torrent info ── */
+.remote-torrent-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.remote-torrent-info span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ── Volume ── */
 .remote-volume-row {
   width: 100%;
