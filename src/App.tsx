@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { PlayerProvider, useRemoteMode, usePlayer } from "./lib/PlayerContext";
 import Navbar from "./components/Navbar";
@@ -10,7 +10,7 @@ import Player from "./pages/Player";
 import Search from "./pages/Search";
 import Remote from "./pages/Remote";
 
-function Layout({ children }) {
+function Layout({ children }: { children: ReactNode }) {
   return (
     <>
       <Navbar />

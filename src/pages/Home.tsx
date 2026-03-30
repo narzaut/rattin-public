@@ -8,17 +8,20 @@ function recentDateRange() {
   const now = new Date();
   const from = new Date(now);
   from.setMonth(from.getMonth() - 2);
-  const fmt = (d) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
   return { from: fmt(from), to: fmt(now) };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function Home() {
-  const [hero, setHero] = useState(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [hero, setHero] = useState<any>(null);
   const { from, to } = recentDateRange();
 
   useEffect(() => {
     fetchTrending().then((data) => {
-      const items = (data.results || []).filter((i) => i.backdrop_path && i.overview);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items = (data.results || []).filter((i: any) => i.backdrop_path && i.overview);
       if (items.length) setHero(items[0]);
     }).catch(() => {});
   }, []);

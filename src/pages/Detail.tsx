@@ -5,46 +5,66 @@ import { ratingColor, formatBytes } from "../lib/utils";
 import { useRemoteMode } from "../lib/PlayerContext";
 import "./Detail.css";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface PrePlayState {
+  infoHash: string;
+  fileIndex: string;
+  tags: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  audioTracks: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  subtitleTracks: any[];
+  selectedAudio: number | null;
+  selectedSub: string;
+  loading: boolean;
+  season?: number | null;
+  episode?: number | null;
+}
+
 export default function Detail() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const type = location.pathname.startsWith("/tv") ? "tv" : "movie";
   const { isRemote, sessionId } = useRemoteMode();
-  const [data, setData] = useState(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [data, setData] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(1);
-  const [episodes, setEpisodes] = useState(null);
-  const [playState, setPlayState] = useState(null); // null | "loading" | "error"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [episodes, setEpisodes] = useState<any>(null);
+  const [playState, setPlayState] = useState<string | null>(null); // null | "loading" | "error"
   const [playError, setPlayError] = useState("");
   const [showPicker, setShowPicker] = useState(false);
-  const [streams, setStreams] = useState(null);
-  const [pickerSeason, setPickerSeason] = useState(null);
-  const [pickerEpisode, setPickerEpisode] = useState(null);
-  const [expandedEps, setExpandedEps] = useState(new Set());
-  const [prePlay, setPrePlay] = useState(null);
-  const [reviews, setReviews] = useState(null);
-  const [expandedReview, setExpandedReview] = useState(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [streams, setStreams] = useState<any[] | null>(null);
+  const [pickerSeason, setPickerSeason] = useState<number | undefined>(undefined);
+  const [pickerEpisode, setPickerEpisode] = useState<number | undefined>(undefined);
+  const [expandedEps, setExpandedEps] = useState(new Set<number>());
+  const [prePlay, setPrePlay] = useState<PrePlayState | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reviews, setReviews] = useState<any>(null);
+  const [expandedReview, setExpandedReview] = useState<string | null>(null);
 
   useEffect(() => {
     setData(null);
     setPlayState(null);
     const fetcher = type === "tv" ? fetchTV : fetchMovie;
-    fetcher(id).then(setData).catch(() => {});
+    fetcher(id!).then(setData).catch(() => {});
   }, [id, type]);
 
   useEffect(() => {
     setReviews(null);
-    fetchReviews(type, id).then(setReviews).catch(() => setReviews({ reviews: [], reddit: [] }));
+    fetchReviews(type, id!).then(setReviews).catch(() => setReviews({ reviews: [], reddit: [] }));
   }, [id, type]);
 
   useEffect(() => {
     if (type === "tv" && data) {
       setEpisodes(null);
-      fetchSeason(id, selectedSeason).then(setEpisodes).catch(() => {});
+      fetchSeason(id!, selectedSeason).then(setEpisodes).catch(() => {});
     }
   }, [id, selectedSeason, data]);
 
-  async function openPicker(season, episode) {
+  async function openPicker(season?: number, episode?: number) {
     setPickerSeason(season);
     setPickerEpisode(episode);
     setShowPicker(true);
@@ -60,7 +80,8 @@ export default function Detail() {
     }
   }
 
-  function sendRemoteStart(result, tags) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function sendRemoteStart(result: any, tags: string[]) {
     fetch("/api/rc/command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -75,7 +96,8 @@ export default function Detail() {
     });
   }
 
-  async function handlePickStream(stream) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handlePickStream(stream: any) {
     setShowPicker(false);
     setPlayState("loading");
     setPlayError("");
@@ -99,13 +121,13 @@ export default function Detail() {
         episode: pickerEpisode,
       });
       probeTracksForPrePlay(result.infoHash, result.fileIndex);
-    } catch (err) {
+    } catch (err: unknown) {
       setPlayState("error");
-      setPlayError(err.message);
+      setPlayError((err as Error).message);
     }
   }
 
-  async function probeTracksForPrePlay(infoHash, fileIndex) {
+  async function probeTracksForPrePlay(infoHash: string, fileIndex: string) {
     let retries = 10;
     while (retries > 0) {
       try {
@@ -113,11 +135,13 @@ export default function Detail() {
           fetchAudioTracks(infoHash, fileIndex),
           fetchSubtitleTracks(infoHash, fileIndex),
         ]);
-        const audioTracks = (audioData.tracks || []).map((t) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const audioTracks = (audioData.tracks || []).map((t: any) => ({
           value: t.streamIndex,
           label: (t.title || t.lang || `Track ${t.streamIndex}`) + (t.channels > 2 ? " 5.1" : ""),
         }));
-        const subtitleTracks = (subData.tracks || []).map((t) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subtitleTracks = (subData.tracks || []).map((t: any) => ({
           value: `embedded:${t.streamIndex}`,
           label: t.title || t.lang || `Track ${t.streamIndex}`,
         }));
@@ -140,7 +164,8 @@ export default function Detail() {
 
   function launchPrePlay() {
     if (!prePlay) return;
-    const navState = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const navState: any = {
       tags: prePlay.tags,
       title: data.title || data.name,
       tmdbId: id,
@@ -160,7 +185,7 @@ export default function Detail() {
     setPlayState(null);
   }
 
-  async function handlePlay(season, episode) {
+  async function handlePlay(season?: number, episode?: number) {
     if (playState === "loading") return;
     setPlayState("loading");
     setPlayError("");
@@ -172,16 +197,17 @@ export default function Detail() {
       if (isRemote) {
         sendRemoteStart(result, result.tags);
       } else {
-        const navState = { tags: result.tags, title: data.title || data.name, tmdbId: id };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const navState: any = { tags: result.tags, title: data.title || data.name, tmdbId: id };
         if (season != null) {
           navState.season = season;
           navState.episode = episode;
         }
         navigate(`/play/${result.infoHash}/${result.fileIndex}`, { state: navState });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setPlayState("error");
-      setPlayError(err.message);
+      setPlayError((err as Error).message);
     }
   }
 
@@ -196,12 +222,15 @@ export default function Detail() {
   const title = data.title || data.name;
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
   const runtime = data.runtime ? `${Math.floor(data.runtime / 60)}h ${data.runtime % 60}m` : null;
-  const seasons = data.seasons?.filter((s) => s.season_number > 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seasons = data.seasons?.filter((s: any) => s.season_number > 0);
   const genres = data.genres || [];
 
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trailer = (data.videos?.results || []).find(
-    (v) => v.type === "Trailer" && v.site === "YouTube"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (v: any) => v.type === "Trailer" && v.site === "YouTube"
   );
 
   return (
@@ -216,7 +245,7 @@ export default function Detail() {
         <div className="detail-main">
           <div className="detail-poster">
             {data.poster_path ? (
-              <img src={poster(data.poster_path, "w500")} alt={title} />
+              <img src={poster(data.poster_path, "w500")!} alt={title} />
             ) : (
               <div className="detail-poster-placeholder" />
             )}
@@ -235,7 +264,8 @@ export default function Detail() {
               )}
             </div>
             <div className="detail-genres">
-              {genres.map((g) => (
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {genres.map((g: any) => (
                 <span key={g.id} className="detail-genre-pill">{g.name}</span>
               ))}
             </div>
@@ -306,7 +336,8 @@ export default function Detail() {
                 value={selectedSeason}
                 onChange={(e) => setSelectedSeason(Number(e.target.value))}
               >
-                {seasons.map((s) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {seasons.map((s: any) => (
                   <option key={s.season_number} value={s.season_number}>
                     Season {s.season_number}
                   </option>
@@ -319,10 +350,11 @@ export default function Detail() {
                   <div key={i} className="episode-card skeleton" style={{ height: 80 }} />
                 ))
               ) : (
-                (episodes.episodes || []).map((ep) => (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (episodes.episodes || []).map((ep: any) => (
                   <div key={ep.id} className="episode-card">
                     {ep.still_path && (
-                      <img className="episode-thumb" src={still(ep.still_path)} alt="" loading="lazy" />
+                      <img className="episode-thumb" src={still(ep.still_path)!} alt="" loading="lazy" />
                     )}
                     <div className="episode-body">
                       <div className="episode-info">
@@ -350,14 +382,14 @@ export default function Detail() {
                           onClick={() => openPicker(selectedSeason, ep.episode_number)}
                           title="Pick source"
                         >
-                          ⋯
+                          &hellip;
                         </button>
                         <button
                           className="episode-play"
                           onClick={() => handlePlay(selectedSeason, ep.episode_number)}
                           disabled={playState === "loading"}
                         >
-                          ▶
+                          &#9654;
                         </button>
                       </div>
                     </div>
@@ -376,7 +408,8 @@ export default function Detail() {
                   <h3>Reddit Discussions</h3>
                 </div>
                 <div className="reddit-list">
-                  {reviews.reddit.map((t) => (
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {reviews.reddit.map((t: any) => (
                     <a
                       key={t.id}
                       className="reddit-card"
@@ -427,7 +460,8 @@ export default function Detail() {
                   )}
                 </div>
                 <div className="reviews-list">
-                  {reviews.reviews.map((r) => {
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {reviews.reviews.map((r: any) => {
                     const isExpanded = expandedReview === r.id;
                     const isLong = r.content.length > 300;
                     return (
@@ -473,7 +507,7 @@ export default function Detail() {
           <div className="picker-modal preplay-modal" onClick={(e) => e.stopPropagation()}>
             <div className="picker-header">
               <h3>Track Selection</h3>
-              <button className="picker-close" onClick={cancelPrePlay}>✕</button>
+              <button className="picker-close" onClick={cancelPrePlay}>&#10005;</button>
             </div>
             <div className="preplay-content">
               {prePlay.loading && <p className="preplay-loading">Detecting tracks...</p>}
@@ -482,9 +516,10 @@ export default function Detail() {
                   <span>Audio</span>
                   <select
                     value={prePlay.selectedAudio ?? ""}
-                    onChange={(e) => setPrePlay((p) => ({ ...p, selectedAudio: parseInt(e.target.value, 10) }))}
+                    onChange={(e) => setPrePlay((p) => p ? { ...p, selectedAudio: parseInt(e.target.value, 10) } : null)}
                   >
-                    {prePlay.audioTracks.map((t) => (
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {prePlay.audioTracks.map((t: any) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>
@@ -495,10 +530,11 @@ export default function Detail() {
                   <span>Subtitles</span>
                   <select
                     value={prePlay.selectedSub}
-                    onChange={(e) => setPrePlay((p) => ({ ...p, selectedSub: e.target.value }))}
+                    onChange={(e) => setPrePlay((p) => p ? { ...p, selectedSub: e.target.value } : null)}
                   >
                     <option value="">Off</option>
-                    {prePlay.subtitleTracks.map((t) => (
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {prePlay.subtitleTracks.map((t: any) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>
@@ -520,7 +556,7 @@ export default function Detail() {
           <div className="picker-modal" onClick={(e) => e.stopPropagation()}>
             <div className="picker-header">
               <h3>Select Source</h3>
-              <button className="picker-close" onClick={() => setShowPicker(false)}>✕</button>
+              <button className="picker-close" onClick={() => setShowPicker(false)}>&#10005;</button>
             </div>
             <div className="picker-list">
               {streams === null ? (
@@ -528,7 +564,8 @@ export default function Detail() {
               ) : streams.length === 0 ? (
                 <div className="picker-empty">No streams found</div>
               ) : (
-                streams.map((s) => (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                streams.map((s: any) => (
                   <button
                     key={s.infoHash}
                     className="picker-item"
@@ -538,7 +575,7 @@ export default function Detail() {
                       <span className="picker-item-name">{s.name}</span>
                       <div className="picker-item-tags">
                         {s.seasonPack && <span className="picker-tag season-pack">Season Pack</span>}
-                        {s.tags.map((t) => (
+                        {s.tags.map((t: string) => (
                           <span key={t} className="picker-tag">{t}</span>
                         ))}
                       </div>

@@ -1,24 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 
-/**
- * In-app QR scanner using camera + BarcodeDetector API.
- * Falls back to a manual URL input if BarcodeDetector is unavailable.
- *
- * Props:
- *   onScan(url: string) — called with the decoded QR URL
- *   onClose() — called when user dismisses
- */
-export default function QrScanner({ onScan, onClose }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const [error, setError] = useState(null);
+// BarcodeDetector is not yet in TypeScript's lib.dom
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const BarcodeDetector: any;
+
+interface QrScannerProps {
+  onScan: (url: string) => void;
+  onClose: () => void;
+}
+
+export default function QrScanner({ onScan, onClose }: QrScannerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [manualUrl, setManualUrl] = useState("");
   const hasDetector = typeof globalThis.BarcodeDetector !== "undefined";
 
   useEffect(() => {
     if (!hasDetector) return;
     let stopped = false;
-    let detector;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let detector: any;
 
     async function start() {
       try {
@@ -26,17 +28,18 @@ export default function QrScanner({ onScan, onClose }) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
         });
-        if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
+        if (stopped) { stream.getTracks().forEach((t: MediaStreamTrack) => t.stop()); return; }
         streamRef.current = stream;
         const v = videoRef.current;
         if (v) { v.srcObject = stream; v.play().catch(() => {}); }
         scan(detector);
-      } catch (err) {
+      } catch {
         if (!stopped) setError("Could not access camera. Check permissions.");
       }
     }
 
-    async function scan(det) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function scan(det: any) {
       if (stopped) return;
       const v = videoRef.current;
       if (v && v.readyState >= 2) {
@@ -68,7 +71,7 @@ export default function QrScanner({ onScan, onClose }) {
     return cleanup;
   }, [hasDetector, onScan]);
 
-  function handleManualSubmit(e) {
+  function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
     const url = manualUrl.trim();
     if (url && url.includes("/api/rc/auth")) {
