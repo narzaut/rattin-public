@@ -380,6 +380,8 @@ app.get("/api/rc/events", (req, res) => {
     sseWrite(res, s.playerClient ? "connected" : "disconnected", {});
     // Send current playback state
     if (s.playbackState) sseWrite(res, "state", s.playbackState);
+    // Notify player that a remote connected
+    if (s.playerClient) sseWrite(s.playerClient, "remote-connected", { count: s.remoteClients.length });
   }
 
   // Heartbeat every 30s
@@ -396,6 +398,8 @@ app.get("/api/rc/events", (req, res) => {
       }
     } else {
       s.remoteClients = s.remoteClients.filter((c) => c !== res);
+      // Notify player that a remote disconnected
+      if (s.playerClient) sseWrite(s.playerClient, "remote-disconnected", { count: s.remoteClients.length });
     }
   });
 });

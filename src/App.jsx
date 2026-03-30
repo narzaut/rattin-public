@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { PlayerProvider, useRemoteMode, usePlayer } from "./lib/PlayerContext";
 import Navbar from "./components/Navbar";
 import MiniPlayer from "./components/MiniPlayer";
+import RemoteNowPlaying from "./components/RemoteNowPlaying";
 import Home from "./pages/Home";
 import Detail from "./pages/Detail";
 import Player from "./pages/Player";
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="/search" element={<Search />} />
       </Routes>
       {!isRemote && <MiniPlayer />}
+      {isRemote && <RemoteNowPlaying />}
     </Layout>
   );
 }

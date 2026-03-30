@@ -5,26 +5,27 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 20px;
-  padding-top: env(safe-area-inset-top, 24px);
-  gap: 22px;
+  padding: 20px 20px;
+  padding-top: env(safe-area-inset-top, 20px);
+  gap: 16px;
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Status indicator */
+/* ── Status indicator ── */
 .remote-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.3px;
   color: var(--text-secondary);
-  padding: 7px 16px;
+  padding: 6px 14px;
   border-radius: 20px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .remote-status-dot {
@@ -32,6 +33,7 @@
   height: 7px;
   border-radius: 50%;
   background: var(--red);
+  flex-shrink: 0;
 }
 
 .remote-status.online .remote-status-dot {
@@ -39,16 +41,27 @@
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
 }
 
-/* Title area */
+.remote-status.reconnecting .remote-status-dot {
+  background: var(--yellow);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Title area ── */
 .remote-title-area {
   text-align: center;
   width: 100%;
   max-width: 400px;
+  flex-shrink: 0;
 }
 
 .remote-title {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
@@ -61,7 +74,7 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .remote-tag {
@@ -75,18 +88,21 @@
   color: var(--accent-bright);
 }
 
-/* Play/pause button */
+/* ── Play area (play + skip in a row) ── */
 .remote-play-area {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px;
+  gap: 28px;
+  min-height: 100px;
+  max-height: 200px;
+  width: 100%;
 }
 
 .remote-play-btn {
-  width: 96px;
-  height: 96px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--bg-deep);
@@ -95,27 +111,46 @@
   justify-content: center;
   transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
   box-shadow: 0 6px 28px rgba(201, 168, 76, 0.3);
+  flex-shrink: 0;
 }
 
 .remote-play-btn:active {
   transform: scale(0.9);
   background: var(--accent-bright);
-  box-shadow: 0 4px 20px rgba(201, 168, 76, 0.4);
 }
 
-/* Seek bar */
+.remote-skip-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.remote-skip-btn:active {
+  background: var(--bg-hover);
+}
+
+/* ── Seek bar ── */
 .remote-seek-area {
   width: 100%;
   max-width: 400px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .remote-time {
   font-size: 11px;
   color: var(--text-secondary);
-  min-width: 44px;
+  min-width: 40px;
   text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -152,49 +187,21 @@
   height: 100%;
   background: var(--accent);
   border-radius: 3px;
-  transition: width 0.1s linear;
+  transition: width 0.15s linear;
 }
 
 .remote-seek-thumb {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent-bright);
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
-/* Skip buttons */
-.remote-skip-row {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-}
-
-.remote-skip-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 14px 22px;
-  border-radius: var(--radius);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 500;
-  min-width: 72px;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.remote-skip-btn:active {
-  background: var(--bg-hover);
-  border-color: var(--border-light);
-}
-
-/* Volume */
+/* ── Volume ── */
 .remote-volume-row {
   width: 100%;
   max-width: 400px;
@@ -202,6 +209,7 @@
   align-items: center;
   gap: 12px;
   padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .remote-volume-slider {
@@ -238,15 +246,16 @@
   border-radius: 3px;
 }
 
-/* Subtitle select */
+/* ── Subtitle select ── */
 .remote-sub-row {
   width: 100%;
   max-width: 400px;
+  flex-shrink: 0;
 }
 
 .remote-sub-select {
   width: 100%;
-  padding: 13px 18px;
+  padding: 12px 16px;
   background: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -265,21 +274,22 @@
   background: var(--bg-base);
 }
 
-/* Bottom actions */
+/* ── Bottom actions ── */
 .remote-bottom-row {
   display: flex;
   gap: 12px;
   width: 100%;
   max-width: 400px;
   padding-bottom: env(safe-area-inset-bottom, 12px);
+  flex-shrink: 0;
 }
 
 .remote-browse-btn,
 .remote-stop-btn {
   flex: 1;
-  padding: 15px;
+  padding: 14px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
   transition: background var(--transition);
@@ -306,7 +316,7 @@
   background: rgba(251, 113, 133, 0.2);
 }
 
-/* Waiting/no-session states */
+/* ── Waiting / no-session states ── */
 .remote-waiting,
 .remote-no-session {
   flex: 1;
@@ -314,13 +324,137 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 20px;
   text-align: center;
   color: var(--text-secondary);
 }
 
 .remote-waiting-text {
   font-size: 13px;
-  max-width: 280px;
+  max-width: 260px;
   line-height: 1.5;
+}
+
+.remote-action-btn {
+  padding: 14px 32px;
+  background: var(--accent);
+  color: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--transition);
+  box-shadow: 0 4px 16px rgba(201, 168, 76, 0.25);
+}
+
+.remote-action-btn:active {
+  transform: scale(0.96);
+  background: var(--accent-bright);
+}
+
+/* ── Fullscreen button ── */
+.remote-fullscreen-btn {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.remote-fullscreen-btn:active {
+  background: var(--bg-hover);
+}
+
+/* ── Connection lost state ── */
+.remote-lost {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.remote-lost-icon {
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.remote-lost-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.remote-lost-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+/* ── Now Playing floating bar (used in browse mode) ── */
+.remote-now-playing {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-base);
+  border-top: 1px solid var(--border-light);
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(16px);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.remote-now-playing-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.remote-now-playing-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+.remote-now-playing-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.remote-now-playing-btn {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.remote-now-playing-btn:active {
+  transform: scale(0.96);
 }

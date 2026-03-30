@@ -52,6 +52,8 @@ export function PlayerProvider({ children }) {
 
   // Remote control session (TV mode — not remote mode)
   const [rcSessionId, setRcSessionId] = useState(null);
+  const [rcAuthToken, setRcAuthToken] = useState(null);
+  const [rcRemoteConnected, setRcRemoteConnected] = useState(false);
   const rcEventSourceRef = useRef(null);
   const stateReportTimer = useRef(null);
   const lastReportedState = useRef(null);
@@ -196,7 +198,21 @@ export function PlayerProvider({ children }) {
           stopStreamRef.current?.();
           if (navigateRef.current) navigateRef.current("/");
           break;
+        case "toggle-fullscreen":
+          try {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else document.documentElement.requestFullscreen?.();
+          } catch {}
+          break;
       }
+    });
+
+    es.addEventListener("remote-connected", (e) => {
+      setRcRemoteConnected(true);
+    });
+    es.addEventListener("remote-disconnected", (e) => {
+      const data = JSON.parse(e.data);
+      setRcRemoteConnected(data.count > 0);
     });
 
     es.onerror = () => {
@@ -206,6 +222,7 @@ export function PlayerProvider({ children }) {
     return () => {
       es.close();
       rcEventSourceRef.current = null;
+      setRcRemoteConnected(false);
     };
   }, [rcSessionId]);
 
@@ -213,12 +230,21 @@ export function PlayerProvider({ children }) {
   useEffect(() => {
     if (!rcSessionId) return;
 
+    // Track last known good time/duration so we never report 0/0 during seeks
+    const lkg = { ct: 0, dur: 0 };
+
     function reportState() {
       const v = videoRef.current;
       if (!v) return;
       const eff = effectiveTimeRef.current;
-      const ct = eff && Date.now() - eff.ts < 2000 ? eff.time : v.currentTime || 0;
-      const dur = eff && Date.now() - eff.ts < 2000 ? eff.duration : (v.duration && isFinite(v.duration) ? v.duration : 0);
+      let ct = eff && Date.now() - eff.ts < 2000 ? eff.time : v.currentTime || 0;
+      let dur = eff && Date.now() - eff.ts < 2000 ? eff.duration : (v.duration && isFinite(v.duration) ? v.duration : 0);
+
+      // Hold last known good values during transient 0/0 states (seeking, rebuffering)
+      if (dur > 0) lkg.dur = dur;
+      if (ct > 0) lkg.ct = ct;
+      if (dur === 0 && lkg.dur > 0) dur = lkg.dur;
+      if (ct === 0 && lkg.ct > 0 && dur > 0) ct = lkg.ct;
 
       const state = {
         sessionId: rcSessionId,
@@ -276,7 +302,7 @@ export function PlayerProvider({ children }) {
       startStream, stopStream, togglePlay,
       effectiveTimeRef, subsRef, activeSubRef, dlProgressRef,
       commandRef, navigateRef,
-      rcSessionId, setRcSessionId,
+      rcSessionId, setRcSessionId, rcAuthToken, setRcAuthToken, rcRemoteConnected,
     }}>
       <video ref={videoRef} style={{ display: "none" }} />
       {children}

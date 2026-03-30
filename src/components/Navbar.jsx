@@ -30,7 +30,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
+    <nav className={`navbar ${scrolled ? "scrolled" : ""} ${isRemote ? "navbar-remote" : ""}`}>
       <Link to="/" className="navbar-brand">
         <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
           <rect x="2" y="2" width="28" height="28" rx="6" stroke="var(--accent)" strokeWidth="1.5" />

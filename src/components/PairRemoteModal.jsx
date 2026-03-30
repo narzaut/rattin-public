@@ -4,7 +4,7 @@ import { usePlayer } from "../lib/PlayerContext";
 import "./PairRemoteModal.css";
 
 export default function PairRemoteModal({ onClose }) {
-  const { rcSessionId, setRcSessionId } = usePlayer();
+  const { rcSessionId, setRcSessionId, setRcAuthToken } = usePlayer();
   const [sessionId, setSessionId] = useState(rcSessionId);
   const [authToken, setAuthToken] = useState(null);
   const [remoteUrl, setRemoteUrl] = useState("");
@@ -26,6 +26,7 @@ export default function PairRemoteModal({ onClose }) {
       setSessionId(data.sessionId);
       setAuthToken(data.authToken);
       setRcSessionId(data.sessionId);
+      setRcAuthToken(data.authToken);
     } catch {
       // ignore
     }
