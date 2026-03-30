@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import path from "path";
 import { statSync } from "fs";
 import { fileURLToPath } from "url";
@@ -12,8 +12,33 @@ import mediaRoutes from "./routes/media.js";
 import statusRoutes from "./routes/status.js";
 import searchRoutes from "./routes/search.js";
 import streamRoutes from "./routes/stream.js";
+import type { ServerContext, TorrentClient, IdleTracker } from "./lib/types.js";
 
-export function createApp(overrides = {}) {
+interface CreateAppOverrides {
+  __dirname?: string;
+  client?: TorrentClient;
+}
+
+interface AppContext {
+  app: ReturnType<typeof express>;
+  client: ServerContext["client"];
+  transcodeJobs: ServerContext["transcodeJobs"];
+  durationCache: ServerContext["durationCache"];
+  seekIndexCache: ServerContext["seekIndexCache"];
+  seekIndexPending: ServerContext["seekIndexPending"];
+  activeFiles: ServerContext["activeFiles"];
+  completedFiles: ServerContext["completedFiles"];
+  streamTracker: ServerContext["streamTracker"];
+  activeTranscodes: ServerContext["activeTranscodes"];
+  availabilityCache: ServerContext["availabilityCache"];
+  probeCache: ServerContext["probeCache"];
+  introCache: ServerContext["introCache"];
+  rcSessions: ServerContext["rcSessions"];
+  idleTracker: IdleTracker;
+  pcAuthToken: string;
+}
+
+export function createApp(overrides: CreateAppOverrides = {}): AppContext {
   const __dirname = overrides.__dirname || path.dirname(fileURLToPath(import.meta.url));
   const app = express();
   const ctx = createContext(overrides);
@@ -25,7 +50,7 @@ export function createApp(overrides = {}) {
   } = ctx;
 
 app.use(express.json());
-app.use((req, res, next) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   req.cookies = {};
   const hdr = req.headers.cookie;
   if (hdr) hdr.split(";").forEach((c) => {
@@ -85,7 +110,7 @@ statusRoutes(app, ctx);
 searchRoutes(app, ctx);
 streamRoutes(app, ctx);
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on("finish", () => {
     if (!req.url.startsWith("/api/status") && !req.url.startsWith("/api/rc/")) {
@@ -108,7 +133,7 @@ const _cacheJanitor = setInterval(() => {
 }, 5 * 60 * 1000);
 if (_cacheJanitor.unref) _cacheJanitor.unref();
 
-app.get("/{*splat}", (req, res) => {
+app.get("/{*splat}", (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
@@ -122,7 +147,8 @@ app.get("/{*splat}", (req, res) => {
 // Detect if this file is being run directly (not imported by tests)
 const isMain = process.argv[1] && (
   process.argv[1] === fileURLToPath(import.meta.url) ||
-  process.argv[1].endsWith("/server.js")
+  process.argv[1].endsWith("/server.js") ||
+  process.argv[1].endsWith("/server.ts")
 );
 if (isMain) {
   const { app, client, transcodeJobs } = createApp();
