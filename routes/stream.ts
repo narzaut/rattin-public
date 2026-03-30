@@ -64,10 +64,12 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
     const audioStreamIdx = req.query.audio ? parseInt(req.query.audio as string, 10) : null;
 
     // Helper: call unified serveLiveTranscode with torrent context
-    const liveTranscode = (isComplete: boolean, seek: number) => _serveLiveTranscode({
+    const liveTranscode = (isComplete: boolean, seek: number, startByte?: number) => _serveLiveTranscode({
       inputPath: diskPath(torrent, file),
       useStdin: !isComplete,
-      createInputStream: !isComplete ? () => file.createReadStream() : undefined,
+      createInputStream: !isComplete
+        ? () => file.createReadStream(startByte != null ? { start: startByte } : undefined)
+        : undefined,
       seekTo: seek,
       audioStreamIdx,
       streamKey: `${torrent.infoHash}:${fileIdx}`,
@@ -193,7 +195,7 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
           if (piecesReady) {
             log("info", "Smart seek (instant)", { seekTo, byteStart, method: seekIndexCache.has(cacheKey) ? "index" : "estimate" });
             torrent.select(firstPiece, getFileEndPiece(file), 1);
-            return liveTranscode(true, seekTo);
+            return liveTranscode(complete, seekTo, byteStart!);
           }
 
           // Pieces not ready — fetch them, then use fast path
@@ -202,7 +204,7 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
             try {
               await waitForPieces(torrent, file, byteStart!, byteEnd, 30000);
               torrent.select(firstPiece, getFileEndPiece(file), 1);
-              return liveTranscode(true, seekTo);
+              return liveTranscode(complete, seekTo, byteStart!);
             } catch {
               log("warn", "Smart seek timeout, falling back", { seekTo });
               return liveTranscode(complete, seekTo);
