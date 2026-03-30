@@ -261,7 +261,7 @@ export function serveFromTorrent(file: TorrentFileForServe, req: Request, res: R
   const range = req.headers.range;
   const size = file.length;
   file.deselect();
-  res.on("close", () => file.select());
+  res.on("close", () => { try { file.select(); } catch {} });
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
