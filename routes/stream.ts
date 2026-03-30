@@ -4,7 +4,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { jobKey } from "../lib/torrent-caches.js";
 import { buildSeekIndex, findSeekOffset, waitForPieces } from "../lib/seek-index.js";
 import { getFileOffset, getFileEndPiece, hasPiece } from "../lib/torrent-compat.js";
-import { needsTranscode, isAllowedFile } from "../lib/media-utils.js";
+import { needsTranscode, isAllowedFile, SUBTITLE_EXTENSIONS } from "../lib/media-utils.js";
 import {
   probeMedia as _probeMedia, serveFile, serveFromTorrent,
   serveLiveTranscode as _serveLiveTranscode,
@@ -85,8 +85,13 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
     // Ensure this file is selected and prioritized
     file.select();
     // Deselect other files so bandwidth goes to the requested file
+    // but keep subtitle files selected — they're tiny and needed for playback
     torrent.files.forEach((f, i) => {
-      if (i !== fileIdx && f.length > 0) {
+      if (i === fileIdx) return;
+      const ext = path.extname(f.name).toLowerCase();
+      if (SUBTITLE_EXTENSIONS.includes(ext)) {
+        try { f.select(); } catch {}
+      } else if (f.length > 0) {
         try { f.deselect(); } catch {}
       }
     });

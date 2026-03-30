@@ -1,5 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import { startTestServer, mockClient } from "../helpers/mock-app.js";
 import type { MockClient } from "../helpers/mock-app.js";
 
@@ -87,5 +88,81 @@ describe("GET /api/stream/:infoHash/:fileIndex", () => {
     assert.equal(res.status, 403);
     const body = await res.json() as { error: string };
     assert.equal(body.error, "File type not allowed");
+  });
+
+  it("selects subtitle files instead of deselecting them", async () => {
+    const calls: Record<string, string[]> = { selected: [], deselected: [] };
+    const torrent = {
+      infoHash: "streamtest-subs",
+      name: "Test",
+      files: [
+        {
+          name: "movie.mkv",
+          length: 500000,
+          downloaded: 500000,
+          path: "test/movie.mkv",
+          offset: 0,
+          select: () => { calls.selected.push("movie.mkv"); },
+          deselect: () => { calls.deselected.push("movie.mkv"); },
+          createReadStream: () => new Readable({ read() { this.push(null); } }),
+        },
+        {
+          name: "movie.srt",
+          length: 5000,
+          downloaded: 0,
+          path: "test/movie.srt",
+          offset: 500000,
+          select: () => { calls.selected.push("movie.srt"); },
+          deselect: () => { calls.deselected.push("movie.srt"); },
+        },
+        {
+          name: "movie.ass",
+          length: 8000,
+          downloaded: 0,
+          path: "test/movie.ass",
+          offset: 505000,
+          select: () => { calls.selected.push("movie.ass"); },
+          deselect: () => { calls.deselected.push("movie.ass"); },
+        },
+        {
+          name: "extras.mkv",
+          length: 300000,
+          downloaded: 0,
+          path: "test/extras.mkv",
+          offset: 513000,
+          select: () => { calls.selected.push("extras.mkv"); },
+          deselect: () => { calls.deselected.push("extras.mkv"); },
+        },
+      ],
+      progress: 0,
+      downloaded: 0,
+      downloadSpeed: 0,
+      uploadSpeed: 0,
+      numPeers: 0,
+      length: 813000,
+      timeRemaining: Infinity,
+      paused: false,
+      pieceLength: 262144,
+      bitfield: { get: () => false },
+      pause: () => {},
+      resume: () => {},
+      destroy: () => {},
+      select: () => {},
+      deselect: () => {},
+    };
+    client.torrents.push(torrent);
+
+    // The stream request will fail to actually transcode (no real file),
+    // but file selection happens before that — which is what we're testing
+    await fetch(`${baseUrl}/api/stream/streamtest-subs/0`);
+
+    // Subtitle files should be selected, not deselected
+    assert.ok(calls.selected.includes("movie.srt"), "SRT subtitle should be selected");
+    assert.ok(calls.selected.includes("movie.ass"), "ASS subtitle should be selected");
+    assert.ok(!calls.deselected.includes("movie.srt"), "SRT subtitle should NOT be deselected");
+    assert.ok(!calls.deselected.includes("movie.ass"), "ASS subtitle should NOT be deselected");
+
+    // Non-subtitle, non-video files should still be deselected
+    assert.ok(calls.deselected.includes("extras.mkv"), "Other video files should be deselected");
   });
 });

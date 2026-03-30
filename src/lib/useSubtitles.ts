@@ -118,12 +118,21 @@ export function useSubtitles(videoRef: RefObject<HTMLVideoElement | null>, deps:
     return out.join("\n");
   }
 
-  function loadSubtitleTrack(src: string, timeOffset: number) {
+  function loadSubtitleTrack(src: string, timeOffset: number, retries = 0) {
     const v = videoRef.current;
     if (!v) return;
     clearAllTracks();
     fetch(src)
-      .then((r) => r.ok ? r.text() : null)
+      .then((r) => {
+        // 202 means subtitle file is still downloading — retry after a delay
+        if (r.status === 202 && retries < 10) {
+          setTimeout(() => {
+            if (activeSubRef.current) loadSubtitleTrack(src, timeOffset, retries + 1);
+          }, 2000);
+          return null;
+        }
+        return r.ok ? r.text() : null;
+      })
       .then((text) => {
         if (!text || !activeSubRef.current) return;
         // Shift cue timestamps to match v.currentTime base (which starts at ~0 after seeking)
