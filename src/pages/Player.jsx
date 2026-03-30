@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { usePlayer } from "../lib/PlayerContext";
+import { usePlayerLoading } from "../lib/usePlayerLoading";
 import { fetchStatus, fetchDuration, fetchSubtitleTracks, fetchAudioTracks, fetchIntroTimestamps } from "../lib/api";
 import { formatTime, formatBytes } from "../lib/utils";
 import { encode } from "uqr";
@@ -30,8 +31,6 @@ export default function Player() {
   const seekRef = useRef();
   const hideTimer = useRef();
   const pollRef = useRef();
-  const pendingSubReload = useRef(null);
-
   const [showControls, setShowControls] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -82,9 +81,10 @@ export default function Player() {
   const [fileName, setFileName] = useState("");
   const [tooltipTime, setTooltipTime] = useState(null);
   const [tooltipX, setTooltipX] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMsg, setLoadingMsg] = useState(0);
-  const [loadingReason, setLoadingReason] = useState("initial"); // "initial" | "seeking"
+  const {
+    loading, setLoading, loadingReason, setLoadingReason,
+    loadingMsg, currentMessage, pendingSubReload, MESSAGES,
+  } = usePlayerLoading(videoRef, { infoHash, fileIndex, reloadActiveSub });
   const [introRange, setIntroRange] = useState(null); // { start, end }
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const skipIntroHideTimer = useRef(null);
@@ -114,69 +114,6 @@ export default function Player() {
     }
     return 0;
   }, []);
-
-  const MESSAGES = {
-    initial: [
-      "Getting everything ready...",
-      "Finding the best source...",
-      "Connecting to peers...",
-      "Almost there...",
-      "Buffering the good stuff...",
-      "Just a moment...",
-      "Preparing your stream...",
-      "Hang tight, nearly ready...",
-      "Setting things up for you...",
-    ],
-    seeking: [
-      "Skipping ahead...",
-      "Jumping to that part...",
-      "Rebuffering...",
-      "Almost there...",
-      "One sec...",
-      "Loading from new position...",
-    ],
-  };
-
-  // Rotate loading messages
-  useEffect(() => {
-    if (!loading) return;
-    setLoadingMsg(0);
-    const msgs = MESSAGES[loadingReason] || MESSAGES.initial;
-    const interval = setInterval(() => {
-      setLoadingMsg((prev) => (prev + 1) % msgs.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [loading, loadingReason]);
-
-  // Detect when video is ready to play
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    setLoading(true);
-    setLoadingReason("initial");
-    function onCanPlay() { setLoading(false); trySubs(); }
-    function onWaiting() { setLoading(true); }
-    function onPlaying() { setLoading(false); trySubs(); }
-    function onLoadedData() { trySubs(); }
-    function trySubs() {
-      if (pendingSubReload.current !== null) {
-        const offset = pendingSubReload.current;
-        pendingSubReload.current = null;
-        reloadActiveSub(offset);
-      }
-    }
-    v.addEventListener("canplay", onCanPlay);
-    v.addEventListener("waiting", onWaiting);
-    v.addEventListener("playing", onPlaying);
-    v.addEventListener("loadeddata", onLoadedData);
-    if (v.readyState >= 3) setLoading(false);
-    return () => {
-      v.removeEventListener("canplay", onCanPlay);
-      v.removeEventListener("waiting", onWaiting);
-      v.removeEventListener("playing", onPlaying);
-      v.removeEventListener("loadeddata", onLoadedData);
-    };
-  }, [infoHash, fileIndex]);
 
   // Move video element into the fullscreen container
   useEffect(() => {
@@ -776,7 +713,7 @@ export default function Player() {
           <div className="player-loading-center">
             <div className="player-loading-spinner" />
             <p className="player-loading-msg" key={`${loadingReason}-${loadingMsg}`}>
-              {(MESSAGES[loadingReason] || MESSAGES.initial)[loadingMsg % (MESSAGES[loadingReason] || MESSAGES.initial).length]}
+              {currentMessage}
             </p>
           </div>
         </div>
