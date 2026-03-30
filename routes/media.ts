@@ -72,73 +72,84 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
     }
 
     const complete = isFileComplete(torrent, file);
-    if (!complete) {
-      res.setHeader("Cache-Control", "no-store");
-      return res.status(202).json({ error: "Subtitle file still downloading" });
-    }
-
     const filePath = diskPath(torrent, file);
     const offset = parseFloat(req.query.offset as string) || 0;
 
-    // For any offset or non-SRT format, use ffmpeg (handles offset via -ss)
-    if (offset > 0 || (ext !== ".srt" && ext !== ".vtt")) {
-      log("info", "Converting subtitle via ffmpeg", { file: file.name, ext, offset });
-      const args = [
-        ...(offset > 0 ? ["-ss", String(offset)] : []),
-        "-i", filePath,
-        "-f", "webvtt",
-        "-v", "warning",
-        "pipe:1",
-      ];
-      const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
+    // If complete on disk, serve from disk (fast path)
+    if (complete) {
+      if (offset > 0 || (ext !== ".srt" && ext !== ".vtt")) {
+        log("info", "Converting subtitle via ffmpeg", { file: file.name, ext, offset });
+        const args = [
+          ...(offset > 0 ? ["-ss", String(offset)] : []),
+          "-i", filePath,
+          "-f", "webvtt",
+          "-v", "warning",
+          "pipe:1",
+        ];
+        const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
+        res.setHeader("Content-Type", "text/vtt; charset=utf-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        ffmpeg.stdout!.pipe(res);
+        ffmpeg.stderr!.on("data", (d: Buffer) => log("warn", "Subtitle ffmpeg: " + d.toString().trim()));
+        ffmpeg.on("close", (code: number | null) => {
+          if (code !== 0) log("err", "Subtitle conversion failed", { file: file.name, code });
+        });
+        res.on("close", () => ffmpeg.kill());
+        return;
+      }
+
+      if (ext === ".vtt") {
+        res.setHeader("Content-Type", "text/vtt; charset=utf-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        return createReadStream(filePath).pipe(res);
+      }
+
+      if (ext === ".srt") {
+        res.setHeader("Content-Type", "text/vtt; charset=utf-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        try {
+          const srtContent = fs.readFileSync(filePath, "utf-8");
+          return res.send(srtToVtt(srtContent));
+        } catch (err) {
+          log("err", "SRT read failed, falling back to stream", { error: (err as Error).message });
+        }
+      }
+    }
+
+    // Not complete or disk read failed — stream directly from WebTorrent.
+    // Select the file to trigger download of its pieces.
+    try { file.deselect(); file.select(); } catch {}
+    log("info", "Streaming subtitle from torrent", { file: file.name, complete });
+
+    const chunks: Buffer[] = [];
+    const stream = file.createReadStream();
+    stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+    stream.on("end", () => {
+      const raw = Buffer.concat(chunks).toString("utf-8");
       res.setHeader("Content-Type", "text/vtt; charset=utf-8");
       res.setHeader("Access-Control-Allow-Origin", "*");
+      if (ext === ".vtt") return res.send(raw);
+      if (ext === ".srt") return res.send(srtToVtt(raw));
+      // Other formats: pipe through ffmpeg from buffer
+      const ffmpeg = spawn("ffmpeg", [
+        ...(offset > 0 ? ["-ss", String(offset)] : []),
+        "-i", "pipe:0", "-f", "webvtt", "-v", "warning", "pipe:1",
+      ], { stdio: ["pipe", "pipe", "pipe"] });
+      ffmpeg.stdin!.end(Buffer.concat(chunks));
       ffmpeg.stdout!.pipe(res);
       ffmpeg.stderr!.on("data", (d: Buffer) => log("warn", "Subtitle ffmpeg: " + d.toString().trim()));
       ffmpeg.on("close", (code: number | null) => {
         if (code !== 0) log("err", "Subtitle conversion failed", { file: file.name, code });
       });
       res.on("close", () => ffmpeg.kill());
-      return;
-    }
-
-    // VTT can be served directly (no offset)
-    if (ext === ".vtt") {
-      res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      return createReadStream(filePath).pipe(res);
-    }
-
-    // SRT without offset: simple text conversion
-    if (ext === ".srt") {
-      res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      try {
-        const srtContent = fs.readFileSync(filePath, "utf-8");
-        const vtt = srtToVtt(srtContent);
-        return res.send(vtt);
-      } catch (err) {
-        log("err", "SRT conversion failed, falling back to ffmpeg", { error: (err as Error).message });
-      }
-    }
-
-    // Fallback: ffmpeg
-    const ffmpeg = spawn("ffmpeg", [
-      "-i", filePath,
-      "-f", "webvtt",
-      "-v", "warning",
-      "pipe:1",
-    ], { stdio: ["ignore", "pipe", "pipe"] });
-
-    res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    ffmpeg.stdout!.pipe(res);
-
-    ffmpeg.stderr!.on("data", (d: Buffer) => log("warn", "Subtitle ffmpeg: " + d.toString().trim()));
-    ffmpeg.on("close", (code: number | null) => {
-      if (code !== 0) log("err", "Subtitle conversion failed", { file: file.name, code });
     });
-    res.on("close", () => ffmpeg.kill());
+    stream.on("error", (err: Error) => {
+      log("err", "Subtitle stream error", { file: file.name, error: err.message });
+      if (!res.headersSent) {
+        res.setHeader("Cache-Control", "no-store");
+        res.status(500).json({ error: "Subtitle stream failed" });
+      }
+    });
   });
 
 
