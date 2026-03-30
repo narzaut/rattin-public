@@ -20,7 +20,7 @@ export default function Player() {
   const { infoHash, fileIndex } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected } = usePlayer();
+  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, setRcSessionId, setRcAuthToken } = usePlayer();
   const tags = location.state?.tags || active?.tags || [];
   const mediaTitle = location.state?.title || active?.title || "";
   const videoContainerRef = useRef();
@@ -516,6 +516,44 @@ export default function Player() {
   }, []);
 
   const playedPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  // Auto-create a new session when remote disconnects during playback
+  // This ensures a QR is always available for the phone to scan
+  const hadRemote = useRef(false);
+  useEffect(() => {
+    if (rcRemoteConnected) {
+      hadRemote.current = true;
+      return;
+    }
+    // Remote just disconnected — if we had one before, ensure we have a session for the QR
+    if (!hadRemote.current) return;
+    // Check if existing session is still valid, if not create a new one
+    async function ensureSession() {
+      if (rcSessionId) {
+        try {
+          const res = await fetch(`/api/rc/session/${rcSessionId}`);
+          if (res.ok) return; // session still alive, QR will show
+        } catch {}
+      }
+      // Session gone or never existed — create one
+      try {
+        const res = await fetch("/api/rc/session", { method: "POST" });
+        const data = await res.json();
+        setRcSessionId(data.sessionId);
+        setRcAuthToken(data.authToken);
+      } catch {}
+    }
+    ensureSession();
+  }, [rcRemoteConnected]);
+
+  // Auto-fullscreen when a remote reconnects
+  useEffect(() => {
+    if (rcRemoteConnected && hadRemote.current) {
+      if (!document.fullscreenElement) {
+        pageRef.current?.requestFullscreen?.().catch(() => {});
+      }
+    }
+  }, [rcRemoteConnected]);
 
   // Generate QR code for remote reconnection
   const showReconnectQr = rcSessionId && rcAuthToken && !rcRemoteConnected;
