@@ -193,7 +193,7 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
           if (piecesReady) {
             log("info", "Smart seek (instant)", { seekTo, byteStart, method: seekIndexCache.has(cacheKey) ? "index" : "estimate" });
             torrent.select(firstPiece, getFileEndPiece(file), 1);
-            return liveTranscode(complete, seekTo);
+            return liveTranscode(true, seekTo);
           }
 
           // Pieces not ready — fetch them, then use fast path
@@ -202,7 +202,7 @@ export default function streamRoutes(app: Express, ctx: ServerContext): void {
             try {
               await waitForPieces(torrent, file, byteStart!, byteEnd, 30000);
               torrent.select(firstPiece, getFileEndPiece(file), 1);
-              return liveTranscode(complete, seekTo);
+              return liveTranscode(true, seekTo);
             } catch {
               log("warn", "Smart seek timeout, falling back", { seekTo });
               return liveTranscode(complete, seekTo);

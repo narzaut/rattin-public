@@ -20,14 +20,17 @@ export function buildTranscodeArgs({ input, useStdin, seekTo, audioStreamIdx, vi
   if (needsDownscale) vFilters.push("scale=-2:1080");
   if (!browserSafeCodec || isRetry) vFilters.push("format=yuv420p");
 
+  const canCopySeek = doSeek && !useStdin;
+
   return [
     ...(useStdin ? ["-analyzeduration", "5000000", "-probesize", "5000000"] : []),
-    ...(doSeek && !useStdin ? ["-ss", String(seekTo)] : []),
+    ...(doSeek && !useStdin ? ["-ss", String(seekTo), "-noaccurateseek"] : []),
     "-i", input,
     ...(doSeek && useStdin ? ["-ss", String(seekTo)] : []),
     "-map", "0:v:0", "-map", audioStreamIdx !== null ? `0:${audioStreamIdx}` : "0:a:0",
-    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
-    ...(vFilters.length > 0 ? ["-vf", vFilters.join(",")] : []),
+    ...(canCopySeek && !isRetry
+      ? ["-c:v", "copy"]
+      : ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", ...(vFilters.length > 0 ? ["-vf", vFilters.join(",")] : [])]),
     "-c:a", "aac", "-ac", "2",
     "-max_muxing_queue_size", "1024",
     "-movflags", "frag_keyframe+empty_moov+default_base_moof",
