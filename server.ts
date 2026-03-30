@@ -103,13 +103,7 @@ const idleTracker = createIdleTracker({
 app.use("/api", idleTracker.middleware);
 idleTracker.start();
 
-rcRoutes(app, ctx);
-tmdbRoutes(app, ctx);
-mediaRoutes(app, ctx);
-statusRoutes(app, ctx);
-searchRoutes(app, ctx);
-streamRoutes(app, ctx);
-
+// Request logging (must be before routes so it intercepts all requests)
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on("finish", () => {
@@ -119,6 +113,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   });
   next();
 });
+
+rcRoutes(app, ctx);
+tmdbRoutes(app, ctx);
+mediaRoutes(app, ctx);
+statusRoutes(app, ctx);
+searchRoutes(app, ctx);
+streamRoutes(app, ctx);
 
 // Cache janitor — every 5 min, prune entries for removed torrents
 const _cacheJanitor = setInterval(() => {
