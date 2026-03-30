@@ -49,6 +49,8 @@ export function PlayerProvider({ children }) {
   const activeSubRef = useRef("");
   const commandRef = useRef(null); // Player.jsx registers { seek, seekRelative, switchSubtitle }
   const dlProgressRef = useRef(0); // set by Player.jsx from status poll
+  const dlSpeedRef = useRef(0);
+  const dlPeersRef = useRef(0);
 
   // Remote control session (TV mode — not remote mode)
   // Persist in sessionStorage so PC page reload preserves the session
@@ -270,6 +272,8 @@ export function PlayerProvider({ children }) {
         activeSub: activeSubRef.current,
         volume: v.volume,
         dlProgress: dlProgressRef.current,
+        dlSpeed: dlSpeedRef.current,
+        dlPeers: dlPeersRef.current,
         connected: true,
       };
 
@@ -311,7 +315,7 @@ export function PlayerProvider({ children }) {
     <PlayerContext.Provider value={{
       videoRef, active, playing, currentTime, duration, volume,
       startStream, stopStream, togglePlay,
-      effectiveTimeRef, subsRef, activeSubRef, dlProgressRef,
+      effectiveTimeRef, subsRef, activeSubRef, dlProgressRef, dlSpeedRef, dlPeersRef,
       commandRef, navigateRef,
       rcSessionId, setRcSessionId, rcAuthToken, setRcAuthToken, rcRemoteConnected,
     }}>

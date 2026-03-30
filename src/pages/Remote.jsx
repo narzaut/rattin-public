@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { formatTime } from "../lib/utils";
+import { formatTime, formatBytes } from "../lib/utils";
 import QrScanner from "../components/QrScanner";
 import "./Remote.css";
 
@@ -512,6 +512,14 @@ export default function Remote() {
         </div>
         <span className="remote-time">{formatTime(dur)}</span>
       </div>
+
+      {(state?.dlProgress ?? 1) < 1 && (
+        <div className="remote-torrent-info">
+          {state.dlSpeed > 0 && <span>{formatBytes(state.dlSpeed)}/s</span>}
+          {state.dlPeers > 0 && <span>{state.dlPeers} peer{state.dlPeers !== 1 ? "s" : ""}</span>}
+          <span>{Math.round((state.dlProgress || 0) * 100)}%</span>
+        </div>
+      )}
 
       <div className="remote-volume-row">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--text-secondary)">
