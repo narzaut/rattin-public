@@ -19,8 +19,8 @@ interface CreateContextOverrides {
 export function createContext(overrides: CreateContextOverrides = {}): ServerContext {
   const client = overrides.client || new WebTorrent() as unknown as TorrentClient;
 
-  const DOWNLOAD_PATH = "/tmp/rattin";
-  const TRANSCODE_PATH = "/tmp/rattin-transcoded";
+  const DOWNLOAD_PATH = process.env.DOWNLOAD_PATH || "/tmp/rattin";
+  const TRANSCODE_PATH = process.env.TRANSCODE_PATH || "/tmp/rattin-transcoded";
 
   const transcodeJobs = new Map<string, TranscodeJob>();
   const durationCache = new Map<string, number>(); // "infoHash:fileIndex" -> seconds
