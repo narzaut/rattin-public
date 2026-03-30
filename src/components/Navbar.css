@@ -109,6 +109,25 @@
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
 }
 
+/* ── Remote mode: always compact, mobile-optimized ── */
+.navbar.navbar-remote {
+  padding: 12px 16px;
+  background: rgba(5, 5, 7, 0.92);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border-bottom-color: var(--border);
+}
+
+.navbar.navbar-remote .navbar-search {
+  width: 0;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 14px;
+}
+
+.navbar.navbar-remote .navbar-brand span {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .navbar {
     padding: 14px 16px;

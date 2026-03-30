@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { usePlayer } from "../lib/PlayerContext";
 import { fetchStatus, fetchDuration, fetchSubtitleTracks } from "../lib/api";
 import { formatTime, formatBytes } from "../lib/utils";
+import { encode } from "uqr";
 import "./Player.css";
 
 const LANG_MAP = {
@@ -19,7 +20,7 @@ export default function Player() {
   const { infoHash, fileIndex } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef } = usePlayer();
+  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, commandRef, dlProgressRef, rcSessionId, rcRemoteConnected } = usePlayer();
   const tags = location.state?.tags || active?.tags || [];
   const mediaTitle = location.state?.title || active?.title || "";
   const videoContainerRef = useRef();
@@ -514,6 +515,25 @@ export default function Player() {
 
   const playedPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
+  // Generate QR code for remote reconnection
+  const showReconnectQr = rcSessionId && rcAuthToken && !rcRemoteConnected;
+  const reconnectQrSvg = useMemo(() => {
+    if (!showReconnectQr) return null;
+    const url = `${window.location.origin}/api/rc/auth?session=${rcSessionId}&token=${rcAuthToken}`;
+    try {
+      const { data, size } = encode(url, { ecc: "L" });
+      const mod = 3;
+      const margin = 4;
+      const total = size * mod + margin * 2;
+      let paths = "";
+      for (let y = 0; y < size; y++)
+        for (let x = 0; x < size; x++)
+          if (data[y][x])
+            paths += `M${margin + x * mod},${margin + y * mod}h${mod}v${mod}h-${mod}z`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}"><rect width="${total}" height="${total}" fill="#fff" rx="4"/><path d="${paths}" fill="#000"/></svg>`;
+    } catch { return null; }
+  }, [showReconnectQr, rcSessionId, rcAuthToken]);
+
   return (
     <div className="player-page" ref={pageRef} onClick={handlePageClick}>
       <div className="player-video-container" ref={videoContainerRef} />
@@ -609,6 +629,13 @@ export default function Player() {
           </div>
         </div>
       </div>
+
+      {showReconnectQr && reconnectQrSvg && (
+        <div className="player-reconnect-qr" onClick={(e) => e.stopPropagation()}>
+          <div className="player-reconnect-qr-inner" dangerouslySetInnerHTML={{ __html: reconnectQrSvg }} />
+          <span className="player-reconnect-qr-label">Scan to reconnect remote</span>
+        </div>
+      )}
     </div>
   );
 }
