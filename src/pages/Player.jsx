@@ -555,6 +555,23 @@ export default function Player() {
     }
   }, [rcRemoteConnected]);
 
+  // Toast when remote connects/disconnects
+  const [remoteToast, setRemoteToast] = useState(null);
+  const prevRemoteConnected = useRef(rcRemoteConnected);
+  useEffect(() => {
+    if (rcRemoteConnected && !prevRemoteConnected.current) {
+      setRemoteToast("connected");
+      const t = setTimeout(() => setRemoteToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+    if (!rcRemoteConnected && prevRemoteConnected.current) {
+      setRemoteToast("disconnected");
+      const t = setTimeout(() => setRemoteToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+    prevRemoteConnected.current = rcRemoteConnected;
+  }, [rcRemoteConnected]);
+
   // Generate QR code for remote reconnection
   const showReconnectQr = rcSessionId && rcAuthToken && !rcRemoteConnected;
   const reconnectQrSvg = useMemo(() => {
@@ -577,6 +594,13 @@ export default function Player() {
   return (
     <div className="player-page" ref={pageRef} onClick={handlePageClick}>
       <div className="player-video-container" ref={videoContainerRef} />
+
+      {remoteToast && (
+        <div className={`player-remote-toast ${remoteToast}`} key={remoteToast}>
+          <span className="player-remote-toast-dot" />
+          {remoteToast === "connected" ? "Remote connected" : "Remote disconnected"}
+        </div>
+      )}
 
       {loading && (
         <div className="player-loading">
