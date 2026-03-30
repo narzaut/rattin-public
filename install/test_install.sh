@@ -565,6 +565,339 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 39: rollback function exists
+# ---------------------------------------------------------------------------
+echo "Test 39: rollback function exists"
+rollback_body="$(sed -n '/^rollback()/,/^}/p' "$INSTALL_SCRIPT")"
+if [ -n "$rollback_body" ]; then
+    pass "rollback function exists"
+else
+    fail "rollback function not found"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 40: rollback restores app.bak and node.bak
+# ---------------------------------------------------------------------------
+echo "Test 40: rollback restores backups"
+if echo "$rollback_body" | grep -q 'app\.bak' && \
+   echo "$rollback_body" | grep -q 'node\.bak'; then
+    pass "rollback handles app.bak and node.bak"
+else
+    fail "rollback does not handle both backups"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 41: rollback restarts the service
+# ---------------------------------------------------------------------------
+echo "Test 41: rollback restarts service"
+if echo "$rollback_body" | grep -q 'systemctl start rattin'; then
+    pass "rollback restarts service"
+else
+    fail "rollback does not restart service"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 42: install_app function exists
+# ---------------------------------------------------------------------------
+echo "Test 42: install_app function exists"
+install_app_body="$(sed -n '/^install_app()/,/^}/p' "$INSTALL_SCRIPT")"
+if [ -n "$install_app_body" ]; then
+    pass "install_app function exists"
+else
+    fail "install_app function not found"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 43: install_app downloads from correct GitHub URL
+# ---------------------------------------------------------------------------
+echo "Test 43: install_app downloads from correct URL"
+if echo "$install_app_body" | grep -q 'github.com/rattin-player/player/archive/refs/heads/main.tar.gz'; then
+    pass "install_app uses correct GitHub URL"
+else
+    fail "install_app does not use correct GitHub URL"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 44: install_app verifies download size > 100KB
+# ---------------------------------------------------------------------------
+echo "Test 44: install_app verifies download size"
+if echo "$install_app_body" | grep -q '100000'; then
+    pass "install_app checks size > 100KB"
+else
+    fail "install_app does not check download size"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 45: install_app uses --strip-components=1
+# ---------------------------------------------------------------------------
+echo "Test 45: install_app extracts with --strip-components=1"
+if echo "$install_app_body" | grep -q 'strip-components=1'; then
+    pass "install_app uses --strip-components=1"
+else
+    fail "install_app does not strip components"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 46: install_app stops service on update
+# ---------------------------------------------------------------------------
+echo "Test 46: install_app stops service on update"
+if echo "$install_app_body" | grep -q 'systemctl stop rattin'; then
+    pass "install_app stops service on update"
+else
+    fail "install_app does not stop service on update"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 47: install_app backs up app dir on update
+# ---------------------------------------------------------------------------
+echo "Test 47: install_app backs up on update"
+if echo "$install_app_body" | grep -q 'app\.bak'; then
+    pass "install_app backs up to app.bak"
+else
+    fail "install_app does not back up on update"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 48: install_app restores .env on update
+# ---------------------------------------------------------------------------
+echo "Test 48: install_app restores .env on update"
+if echo "$install_app_body" | grep -q 'app\.bak/.env.*app/.env'; then
+    pass "install_app restores .env from backup"
+else
+    fail "install_app does not restore .env"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 49: install_app cleans up temp file
+# ---------------------------------------------------------------------------
+echo "Test 49: install_app cleans up temp file"
+if echo "$install_app_body" | grep -q 'rm -f.*tmpfile'; then
+    pass "install_app removes temp file"
+else
+    fail "install_app does not clean up temp file"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 50: build_app function exists
+# ---------------------------------------------------------------------------
+echo "Test 50: build_app function exists"
+build_app_body="$(sed -n '/^build_app()/,/^}/p' "$INSTALL_SCRIPT")"
+if [ -n "$build_app_body" ]; then
+    pass "build_app function exists"
+else
+    fail "build_app function not found"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 51: build_app sets PATH with runtime dirs
+# ---------------------------------------------------------------------------
+echo "Test 51: build_app sets PATH"
+if echo "$build_app_body" | grep -q 'runtime/node/bin.*runtime/bin.*PATH'; then
+    pass "build_app sets PATH with runtime dirs"
+else
+    fail "build_app does not set PATH correctly"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 52: build_app runs npm ci
+# ---------------------------------------------------------------------------
+echo "Test 52: build_app runs npm ci"
+if echo "$build_app_body" | grep -q 'npm.*ci'; then
+    pass "build_app runs npm ci"
+else
+    fail "build_app does not run npm ci"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 53: build_app runs npm run build
+# ---------------------------------------------------------------------------
+echo "Test 53: build_app runs npm run build"
+if echo "$build_app_body" | grep -q 'npm.*run build'; then
+    pass "build_app runs npm run build"
+else
+    fail "build_app does not run npm run build"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 54: build_app verifies public/index.html
+# ---------------------------------------------------------------------------
+echo "Test 54: build_app verifies public/index.html"
+if echo "$build_app_body" | grep -q 'public/index.html'; then
+    pass "build_app checks for public/index.html"
+else
+    fail "build_app does not verify build output"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 55: build_app calls rollback on failure during update
+# ---------------------------------------------------------------------------
+echo "Test 55: build_app calls rollback on failure"
+if echo "$build_app_body" | grep -q 'rollback'; then
+    pass "build_app calls rollback"
+else
+    fail "build_app does not call rollback"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 56: configure_tmdb function exists
+# ---------------------------------------------------------------------------
+echo "Test 56: configure_tmdb function exists"
+tmdb_body="$(sed -n '/^configure_tmdb()/,/^}/p' "$INSTALL_SCRIPT")"
+if [ -n "$tmdb_body" ]; then
+    pass "configure_tmdb function exists"
+else
+    fail "configure_tmdb function not found"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 57: configure_tmdb skips if TMDB_API_KEY already set
+# ---------------------------------------------------------------------------
+echo "Test 57: configure_tmdb skips if key exists"
+if echo "$tmdb_body" | grep -q 'TMDB_API_KEY=.'; then
+    pass "configure_tmdb checks for existing key"
+else
+    fail "configure_tmdb does not check for existing key"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 58: configure_tmdb validates key against TMDB API
+# ---------------------------------------------------------------------------
+echo "Test 58: configure_tmdb validates key"
+if echo "$tmdb_body" | grep -q 'api.themoviedb.org/3/configuration'; then
+    pass "configure_tmdb validates against TMDB API"
+else
+    fail "configure_tmdb does not validate key"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 59: configure_tmdb writes .env file
+# ---------------------------------------------------------------------------
+echo "Test 59: configure_tmdb writes .env"
+if echo "$tmdb_body" | grep -q 'TMDB_API_KEY=.*\.env'; then
+    pass "configure_tmdb writes TMDB_API_KEY to .env"
+else
+    fail "configure_tmdb does not write .env"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 60: configure_tmdb reads from /dev/tty
+# ---------------------------------------------------------------------------
+echo "Test 60: configure_tmdb reads from /dev/tty"
+if echo "$tmdb_body" | grep -q '/dev/tty'; then
+    pass "configure_tmdb reads from /dev/tty"
+else
+    fail "configure_tmdb does not read from /dev/tty"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 61: set_permissions function exists
+# ---------------------------------------------------------------------------
+echo "Test 61: set_permissions function exists"
+perms_body="$(sed -n '/^set_permissions()/,/^}/p' "$INSTALL_SCRIPT")"
+if [ -n "$perms_body" ]; then
+    pass "set_permissions function exists"
+else
+    fail "set_permissions function not found"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 62: set_permissions sets ownership
+# ---------------------------------------------------------------------------
+echo "Test 62: set_permissions sets ownership"
+if echo "$perms_body" | grep -q 'chown -R rattin:rattin'; then
+    pass "set_permissions sets ownership"
+else
+    fail "set_permissions does not set ownership"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 63: set_permissions secures .env file
+# ---------------------------------------------------------------------------
+echo "Test 63: set_permissions secures .env"
+if echo "$perms_body" | grep -q 'chmod 0600.*\.env'; then
+    pass "set_permissions sets .env to 0600"
+else
+    fail "set_permissions does not secure .env"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 64: set_permissions handles SELinux
+# ---------------------------------------------------------------------------
+echo "Test 64: set_permissions handles SELinux"
+if echo "$perms_body" | grep -q 'SELINUX_ENFORCING' && \
+   echo "$perms_body" | grep -q 'semanage' && \
+   echo "$perms_body" | grep -q 'restorecon'; then
+    pass "set_permissions handles SELinux"
+else
+    fail "set_permissions does not handle SELinux"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 65: set_permissions adds SELinux port context for 3000
+# ---------------------------------------------------------------------------
+echo "Test 65: set_permissions adds port 3000 context"
+if echo "$perms_body" | grep -q 'http_port_t.*tcp 3000'; then
+    pass "set_permissions adds port 3000 SELinux context"
+else
+    fail "set_permissions does not add port 3000 context"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 66: main calls install_app after install_build_tools
+# ---------------------------------------------------------------------------
+echo "Test 66: main calls install_app after install_build_tools"
+main_body="$(sed -n '/^main()/,/^}/p' "$INSTALL_SCRIPT")"
+build_tools_line="$(echo "$main_body" | grep -n 'install_build_tools' | head -1 | cut -d: -f1)"
+install_app_line="$(echo "$main_body" | grep -n 'install_app' | head -1 | cut -d: -f1)"
+if [ -n "$build_tools_line" ] && [ -n "$install_app_line" ] && [ "$build_tools_line" -lt "$install_app_line" ]; then
+    pass "install_app called after install_build_tools"
+else
+    fail "install_app not in correct order (build_tools=$build_tools_line, install_app=$install_app_line)"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 67: main calls build_app after install_app
+# ---------------------------------------------------------------------------
+echo "Test 67: main calls build_app after install_app"
+build_app_line="$(echo "$main_body" | grep -n 'build_app' | head -1 | cut -d: -f1)"
+if [ -n "$install_app_line" ] && [ -n "$build_app_line" ] && [ "$install_app_line" -lt "$build_app_line" ]; then
+    pass "build_app called after install_app"
+else
+    fail "build_app not in correct order"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 68: main calls configure_tmdb only on fresh install
+# ---------------------------------------------------------------------------
+echo "Test 68: configure_tmdb only on fresh install"
+if echo "$main_body" | grep -B1 'configure_tmdb' | grep -q 'MODE.*fresh'; then
+    pass "configure_tmdb guarded by MODE=fresh"
+else
+    fail "configure_tmdb not guarded by fresh mode check"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 69: main calls set_permissions
+# ---------------------------------------------------------------------------
+echo "Test 69: main calls set_permissions"
+if echo "$main_body" | grep -q 'set_permissions'; then
+    pass "set_permissions called in main"
+else
+    fail "set_permissions not called in main"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 70: set_permissions called after build_app
+# ---------------------------------------------------------------------------
+echo "Test 70: set_permissions after build_app in main"
+perms_line="$(echo "$main_body" | grep -n 'set_permissions' | head -1 | cut -d: -f1)"
+if [ -n "$build_app_line" ] && [ -n "$perms_line" ] && [ "$build_app_line" -lt "$perms_line" ]; then
+    pass "set_permissions called after build_app"
+else
+    fail "set_permissions not in correct order"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
