@@ -35,6 +35,7 @@ const durationCache = new Map(); // "infoHash:fileIndex" -> seconds
 const seekIndexCache = new BoundedMap(20); // "infoHash:fileIndex" -> [{ time, offset }, ...]
 const seekIndexPending = new Set(); // jobKeys currently being indexed (prevents duplicate attempts)
 const activeFiles = new Map(); // "infoHash" -> Set of fileIndex
+const completedFiles = new Map(); // "infoHash:fileIndex" -> { path, size, name }
 const streamTracker = new Map(); // infoHash -> { count, idleTimer }
 const availabilityCache = new Map(); // "title:year" -> { available: bool, ts: number }
 const AVAIL_TTL = 2 * 60 * 60 * 1000; // 2 hours
@@ -69,6 +70,19 @@ function isFileComplete(torrent, file) {
 
 // Clean all caches for a torrent — delegates to central registry
 function cleanupTorrentCaches(infoHash, torrent) {
+  // Persist paths for completed files so they can be served after torrent removal
+  if (torrent?.files) {
+    for (let i = 0; i < torrent.files.length; i++) {
+      const f = torrent.files[i];
+      const fp = diskPath(torrent, f);
+      try {
+        const stat = statSync(fp);
+        if (stat.size === f.length && stat.size > 0) {
+          completedFiles.set(`${infoHash}:${i}`, { path: fp, size: f.length, name: f.name });
+        }
+      } catch {}
+    }
+  }
   const filePaths = torrent?.files
     ? torrent.files.map((f) => diskPath(torrent, f))
     : [];
@@ -751,7 +765,28 @@ app.get("/api/subtitle-extract/:infoHash/:fileIndex/:streamIndex", (req, res) =>
 // Stream endpoint
 app.get("/api/stream/:infoHash/:fileIndex", streamTracking, async (req, res) => {
   const torrent = client.torrents.find((t) => t.infoHash === req.params.infoHash);
-  if (!torrent) return res.status(404).json({ error: "Torrent not found" });
+
+  // Torrent removed but file still on disk — serve directly
+  if (!torrent) {
+    const fileKey = `${req.params.infoHash}:${req.params.fileIndex}`;
+    const cached = completedFiles.get(fileKey);
+    if (cached) {
+      try {
+        const stat = statSync(cached.path);
+        if (stat.size === cached.size) {
+          const ext = path.extname(cached.name).toLowerCase();
+          log("info", "Serving from disk (torrent removed)", { file: cached.name });
+          if (needsTranscode(ext)) {
+            return serveLiveTranscodeFromDisk(cached.path, cached.name, req, res);
+          }
+          return serveFile(cached.path, cached.size,
+            ext === ".webm" ? "video/webm" : "video/mp4", req, res);
+        }
+      } catch {}
+      completedFiles.delete(fileKey);
+    }
+    return res.status(404).json({ error: "Torrent not found" });
+  }
 
   const file = torrent.files[parseInt(req.params.fileIndex, 10)];
   if (!file) return res.status(404).json({ error: "File not found" });
@@ -997,6 +1032,7 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
     "-max_muxing_queue_size", "1024",
     "-movflags", "frag_keyframe+empty_moov+default_base_moof",
     "-f", "mp4", "-v", "warning",
+    "-progress", "pipe:2",
     "pipe:1",
   ];
 
@@ -1014,7 +1050,10 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
     ffmpeg.stdin.on("error", () => {});
   }
 
-  ffmpeg.stderr.on("data", () => {});
+  // Track both stdout data and stderr progress as heartbeat
+  let lastActivity = Date.now();
+  ffmpeg.stdout.on("data", () => { lastActivity = Date.now(); });
+  ffmpeg.stderr.on("data", () => { lastActivity = Date.now(); });
 
   res.writeHead(200, {
     "Content-Type": "video/mp4",
@@ -1025,13 +1064,12 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
 
   ffmpeg.stdout.pipe(res);
 
-  // Watchdog: kill ffmpeg if no output for 30s (nginx may not detect client disconnect when stalled)
-  let lastOutput = Date.now();
-  ffmpeg.stdout.on("data", () => { lastOutput = Date.now(); });
+  // Watchdog: kill ffmpeg if no activity (stdout OR stderr) for 120s
+  const WATCHDOG_TIMEOUT = 120000;
   const watchdog = setInterval(() => {
-    if (Date.now() - lastOutput > 30000) {
+    if (Date.now() - lastActivity > WATCHDOG_TIMEOUT) {
       clearInterval(watchdog);
-      log("info", "Watchdog: killing stale ffmpeg (no output for 30s)");
+      log("warn", "Watchdog: killing stale ffmpeg (no activity for 120s)");
       if (torrentStream) torrentStream.destroy();
       ffmpeg.kill("SIGKILL");
     }
@@ -1056,18 +1094,20 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
         "-max_muxing_queue_size", "1024",
         "-movflags", "frag_keyframe+empty_moov+default_base_moof",
         "-f", "mp4", "-v", "warning",
+        "-progress", "pipe:2",
         "pipe:1",
       ];
       const ff2 = spawn("ffmpeg", args2, { stdio: [useStdin ? "pipe" : "ignore", "pipe", "pipe"] });
-      let lastOutput2 = Date.now();
+      let lastActivity2 = Date.now();
+      ff2.stdout.on("data", () => { lastActivity2 = Date.now(); });
+      ff2.stderr.on("data", () => { lastActivity2 = Date.now(); });
       const watchdog2 = setInterval(() => {
-        if (Date.now() - lastOutput2 > 30000) {
+        if (Date.now() - lastActivity2 > WATCHDOG_TIMEOUT) {
           clearInterval(watchdog2);
-          log("info", "Watchdog: killing stale retry ffmpeg");
+          log("warn", "Watchdog: killing stale retry ffmpeg (no activity for 120s)");
           ff2.kill("SIGKILL");
         }
       }, 10000);
-      ff2.stdout.on("data", () => { lastOutput2 = Date.now(); });
       ff2.on("close", () => { clearInterval(watchdog2); });
       if (useStdin) {
         const ts2 = file.createReadStream();
@@ -1076,7 +1116,6 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
         ff2.stdin.on("error", () => {});
         res.on("close", () => { clearInterval(watchdog2); ts2.destroy(); ff2.kill(); });
       }
-      ff2.stderr.on("data", () => {});
       ff2.stdout.pipe(res, { end: true });
       if (!useStdin) res.on("close", () => { clearInterval(watchdog2); ff2.kill(); });
     }
@@ -1089,10 +1128,94 @@ function serveLiveTranscode(torrent, file, complete, req, res, seekTo = 0, audio
   });
 }
 
+// Live transcode from disk only (for serving after torrent removal)
+function serveLiveTranscodeFromDisk(filePath, fileName, req, res) {
+  const seekTo = parseFloat(req.query.t) || 0;
+  const doSeek = seekTo > 0;
+
+  const cached = probeCache.get(filePath);
+  const browserSafeCodec = !cached?.videoCodec || cached.videoCodec === "h264";
+  const needsDownscale = !browserSafeCodec && cached?.videoCodec;
+
+  const vFilters = [];
+  if (needsDownscale) vFilters.push("scale=-2:1080");
+  if (!browserSafeCodec) vFilters.push("format=yuv420p");
+
+  const audioStreamIdx = req.query.audio ? parseInt(req.query.audio, 10) : null;
+
+  const args = [
+    ...(doSeek ? ["-ss", String(seekTo)] : []),
+    "-i", filePath,
+    "-map", "0:v:0", "-map", audioStreamIdx !== null ? `0:${audioStreamIdx}` : "0:a:0",
+    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+    ...(vFilters.length > 0 ? ["-vf", vFilters.join(",")] : []),
+    "-c:a", "aac", "-ac", "2",
+    "-max_muxing_queue_size", "1024",
+    "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+    "-f", "mp4", "-v", "warning",
+    "-progress", "pipe:2",
+    "pipe:1",
+  ];
+
+  log("info", "Live transcode (disk fallback)", { file: path.basename(filePath), seekTo });
+
+  const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
+
+  let lastActivity = Date.now();
+  ffmpeg.stdout.on("data", () => { lastActivity = Date.now(); });
+  ffmpeg.stderr.on("data", () => { lastActivity = Date.now(); });
+
+  const WATCHDOG_TIMEOUT = 120000;
+  const watchdog = setInterval(() => {
+    if (Date.now() - lastActivity > WATCHDOG_TIMEOUT) {
+      clearInterval(watchdog);
+      log("warn", "Watchdog: killing stale disk-fallback ffmpeg");
+      ffmpeg.kill("SIGKILL");
+    }
+  }, 10000);
+
+  res.writeHead(200, {
+    "Content-Type": "video/mp4",
+    "Transfer-Encoding": "chunked",
+    "X-Accel-Buffering": "no",
+    "Cache-Control": "no-cache",
+  });
+
+  ffmpeg.stdout.pipe(res);
+  ffmpeg.on("close", () => { clearInterval(watchdog); });
+  res.on("close", () => { clearInterval(watchdog); ffmpeg.kill(); });
+}
+
 // Status
 app.get("/api/status/:infoHash", (req, res) => {
   const torrent = client.torrents.find((t) => t.infoHash === req.params.infoHash);
-  if (!torrent) return res.status(404).json({ error: "Torrent not found" });
+  if (!torrent) {
+    const diskFiles = [];
+    for (const [key, info] of completedFiles) {
+      if (key.startsWith(req.params.infoHash + ":")) {
+        const idx = parseInt(key.split(":")[1], 10);
+        const ext = path.extname(info.name).toLowerCase();
+        diskFiles.push({
+          index: idx, name: info.name, length: info.size,
+          downloaded: info.size, progress: 1,
+          isVideo: VIDEO_EXTENSIONS.includes(ext),
+          isAudio: AUDIO_EXTENSIONS.includes(ext),
+          isSubtitle: SUBTITLE_EXTENSIONS.includes(ext),
+          isAllowed: isAllowedFile(info.name),
+          transcodeStatus: null, duration: durationCache.get(key) || null,
+        });
+      }
+    }
+    if (diskFiles.length > 0) {
+      return res.json({
+        infoHash: req.params.infoHash, name: "(cached on disk)",
+        downloadSpeed: 0, uploadSpeed: 0, progress: 1,
+        downloaded: 0, totalSize: 0, numPeers: 0, timeRemaining: 0,
+        files: diskFiles,
+      });
+    }
+    return res.status(404).json({ error: "Torrent not found" });
+  }
 
   res.json({
     infoHash: torrent.infoHash,
