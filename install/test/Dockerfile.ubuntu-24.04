@@ -1,0 +1,13 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Start completely clean — no extra packages pre-installed
+# The installer must handle everything
+
+COPY install.sh /tmp/install.sh
+RUN chmod +x /tmp/install.sh
+
+# Run installer in non-interactive mode, skip service (no systemd in Docker)
+# Use a dummy TMDB key for testing (validation will warn but continue)
+CMD ["bash", "/tmp/install.sh", "--non-interactive", "--no-service", "--tmdb-key", "test_dummy_key_12345"]

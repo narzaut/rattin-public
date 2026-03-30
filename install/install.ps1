@@ -564,7 +564,7 @@ set DOWNLOAD_PATH=C:\Program Files\rattin\data\downloads
 set TRANSCODE_PATH=C:\Program Files\rattin\data\transcoded
 set HOST=127.0.0.1
 cd /d "C:\Program Files\rattin\app"
-"C:\Program Files\rattin\runtime\node\node.exe" --max-old-space-size=256 --env-file=.env server.js
+"C:\Program Files\rattin\app\node_modules\.bin\tsx.cmd" --env-file=.env server.ts
 "@
         Set-Content -Path "$InstallDir\start.bat" -Value $batContent -Encoding ASCII
         Write-Info "Manual launcher written to $InstallDir\start.bat"
@@ -590,8 +590,8 @@ cd /d "C:\Program Files\rattin\app"
   <id>rattin</id>
   <name>Rattin</name>
   <description>WebTorrent streaming server</description>
-  <executable>C:\Program Files\rattin\runtime\node\node.exe</executable>
-  <arguments>--max-old-space-size=256 --env-file=.env server.js</arguments>
+  <executable>C:\Program Files\rattin\app\node_modules\.bin\tsx.cmd</executable>
+  <arguments>--env-file=.env server.ts</arguments>
   <workingdirectory>C:\Program Files\rattin\app</workingdirectory>
   <env name="PATH" value="C:\Program Files\rattin\runtime\node;C:\Program Files\rattin\runtime\bin;%PATH%"/>
   <env name="PORT" value="3000"/>

@@ -72,6 +72,7 @@ download() {
 # ---------------------------------------------------------------------------
 UNINSTALL=false
 USE_SERVICE=false
+NON_INTERACTIVE=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -79,12 +80,32 @@ while [ $# -gt 0 ]; do
             UNINSTALL=true
             shift
             ;;
+        --non-interactive)
+            NON_INTERACTIVE=true
+            shift
+            ;;
+        --tmdb-key)
+            TMDB_API_KEY_ARG="$2"
+            shift 2
+            ;;
+        --tmdb-key=*)
+            TMDB_API_KEY_ARG="${1#*=}"
+            shift
+            ;;
+        --no-service)
+            USE_SERVICE=false
+            NO_SERVICE_FLAG=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: install.sh [--uninstall]"
+            echo "Usage: install.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --uninstall   Remove rattin and all its components"
-            echo "  --help, -h    Show this help message"
+            echo "  --uninstall        Remove rattin and all its components"
+            echo "  --non-interactive  Skip all prompts (use with --tmdb-key and --no-service)"
+            echo "  --tmdb-key KEY     Provide TMDB API key non-interactively"
+            echo "  --no-service       Skip systemd service setup (create start.sh instead)"
+            echo "  --help, -h         Show this help message"
             exit 0
             ;;
         *)
@@ -202,9 +223,15 @@ detect_mode() {
     elif [ -d "$INSTALL_DIR/" ] && [ ! -f "$INSTALL_DIR/.installer-version" ]; then
         MODE="unknown"
         log warn "Found existing $INSTALL_DIR not managed by this installer."
-        printf "${YELLOW}Found existing installation not managed by this installer. Wipe and reinstall? [y/N]${NC} "
+
         local answer
-        read -r answer < /dev/tty || answer="n"
+        if [ "$NON_INTERACTIVE" = "true" ]; then
+            answer="y"
+            log info "Non-interactive mode: auto-wiping existing installation"
+        else
+            printf "${YELLOW}Found existing installation not managed by this installer. Wipe and reinstall? [y/N]${NC} "
+            read -r answer < /dev/tty || answer="n"
+        fi
         case "$answer" in
             [yY]|[yY][eE][sS])
                 MODE="wipe"
@@ -554,16 +581,26 @@ configure_tmdb() {
         return 0
     fi
 
-    echo ""
-    echo "Rattin uses The Movie Database (TMDB) for movie/TV metadata."
-    echo "To get a free API key:"
-    echo "  1. Create an account at https://www.themoviedb.org/signup"
-    echo "  2. Go to https://www.themoviedb.org/settings/api"
-    echo "  3. Request an API key (choose 'Developer' option)"
-    echo ""
+    local TMDB_KEY=""
 
-    local TMDB_KEY
-    read -rp "Paste your TMDB API key: " TMDB_KEY < /dev/tty
+    # Check if key was passed via --tmdb-key flag
+    if [ -n "${TMDB_API_KEY_ARG:-}" ]; then
+        TMDB_KEY="$TMDB_API_KEY_ARG"
+        log info "Using TMDB API key from --tmdb-key argument"
+    elif [ "$NON_INTERACTIVE" = "true" ]; then
+        log warn "No TMDB API key provided (non-interactive mode). Add it later to $INSTALL_DIR/app/.env"
+        return 0
+    else
+        echo ""
+        echo "Rattin uses The Movie Database (TMDB) for movie/TV metadata."
+        echo "To get a free API key:"
+        echo "  1. Create an account at https://www.themoviedb.org/signup"
+        echo "  2. Go to https://www.themoviedb.org/settings/api"
+        echo "  3. Request an API key (choose 'Developer' option)"
+        echo ""
+
+        read -rp "Paste your TMDB API key: " TMDB_KEY < /dev/tty
+    fi
 
     if [ -z "$TMDB_KEY" ]; then
         log warn "No TMDB API key provided. You can add it later to $INSTALL_DIR/app/.env"
@@ -618,8 +655,14 @@ set_permissions() {
 setup_service() {
     log info "Configuring service..."
 
-    local answer
-    read -p "Start rattin automatically on boot? [Y/n]: " answer < /dev/tty || answer=""
+    local answer=""
+
+    if [ "${NO_SERVICE_FLAG:-}" = "true" ] || [ "$NON_INTERACTIVE" = "true" ]; then
+        answer="n"
+        log info "Skipping service setup (non-interactive or --no-service)"
+    else
+        read -p "Start rattin automatically on boot? [Y/n]: " answer < /dev/tty || answer=""
+    fi
 
     case "$answer" in
         [nN]|[nN][oO])
@@ -633,7 +676,7 @@ export DOWNLOAD_PATH="/opt/rattin/data/downloads"
 export TRANSCODE_PATH="/opt/rattin/data/transcoded"
 export HOST="127.0.0.1"
 cd /opt/rattin/app
-exec /opt/rattin/runtime/node/bin/node --max-old-space-size=256 --env-file=.env server.js
+exec /opt/rattin/app/node_modules/.bin/tsx --env-file=.env server.ts
 LAUNCHER
             chmod +x "$INSTALL_DIR/start.sh"
             log info "Manual launcher written to $INSTALL_DIR/start.sh"
@@ -661,7 +704,7 @@ Environment=PORT=3000
 Environment=HOST=127.0.0.1
 Environment=DOWNLOAD_PATH=/opt/rattin/data/downloads
 Environment=TRANSCODE_PATH=/opt/rattin/data/transcoded
-ExecStart=/opt/rattin/runtime/node/bin/node --max-old-space-size=256 --env-file=.env server.js
+ExecStart=/opt/rattin/app/node_modules/.bin/tsx --env-file=.env server.ts
 Restart=always
 RestartSec=5
 
