@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "",
   "type": "module",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
     "start": "tsx --env-file=.env server.ts",
     "dev": "vite",
@@ -28,6 +28,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.1",
+    "tsx": "^4.21.0",
     "uqr": "^0.1.2",
     "webtorrent": "^2.8.5"
   },
@@ -37,7 +38,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.5.2",
-    "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vite": "^6.3.5"
   }
