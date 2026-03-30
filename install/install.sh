@@ -425,6 +425,169 @@ install_build_tools() {
     log info "Build tools installed successfully"
 }
 
+# ---------------------------------------------------------------------------
+# rollback() — restore app.bak and node.bak on update failure
+# ---------------------------------------------------------------------------
+rollback() {
+    log warn "Rolling back to previous installation..."
+    if [ -d "$INSTALL_DIR/app.bak" ]; then
+        rm -rf "$INSTALL_DIR/app"
+        mv "$INSTALL_DIR/app.bak" "$INSTALL_DIR/app"
+        log info "Restored previous app directory"
+    fi
+    if [ -d "$INSTALL_DIR/runtime/node.bak" ]; then
+        rm -rf "$INSTALL_DIR/runtime/node"
+        mv "$INSTALL_DIR/runtime/node.bak" "$INSTALL_DIR/runtime/node"
+        log info "Restored previous Node.js installation"
+    fi
+    systemctl start rattin 2>/dev/null || true
+    log warn "Rollback complete. Previous version restored."
+}
+
+# ---------------------------------------------------------------------------
+# install_app() — download the app from GitHub
+# ---------------------------------------------------------------------------
+install_app() {
+    log info "Downloading application..."
+
+    local tarball_url="https://github.com/rattin-player/player/archive/refs/heads/main.tar.gz"
+    local tmpfile="/tmp/rattin-app-download.tar.gz"
+
+    download "$tarball_url" > "$tmpfile"
+
+    # Verify file size > 100KB
+    local filesize
+    filesize="$(stat -c%s "$tmpfile")"
+    if [ "$filesize" -lt 100000 ]; then
+        rm -f "$tmpfile"
+        die "App download too small (${filesize} bytes). Download may have failed."
+    fi
+
+    if [ "$MODE" = "update" ]; then
+        # Stop service before replacing files
+        systemctl stop rattin 2>/dev/null || true
+
+        # Backup current app directory
+        rm -rf "$INSTALL_DIR/app.bak"
+        mv "$INSTALL_DIR/app" "$INSTALL_DIR/app.bak"
+        mkdir -p "$INSTALL_DIR/app"
+
+        # Extract new tarball
+        tar -xzf "$tmpfile" -C "$INSTALL_DIR/app/" --strip-components=1
+
+        # Restore .env from backup
+        cp "$INSTALL_DIR/app.bak/.env" "$INSTALL_DIR/app/.env" 2>/dev/null || true
+    else
+        # Fresh install — extract directly
+        mkdir -p "$INSTALL_DIR/app"
+        tar -xzf "$tmpfile" -C "$INSTALL_DIR/app/" --strip-components=1
+    fi
+
+    rm -f "$tmpfile"
+    log info "Application downloaded successfully"
+}
+
+# ---------------------------------------------------------------------------
+# build_app() — npm ci and build the frontend
+# ---------------------------------------------------------------------------
+build_app() {
+    log info "Building application..."
+
+    export PATH="$INSTALL_DIR/runtime/node/bin:$INSTALL_DIR/runtime/bin:$PATH"
+    cd "$INSTALL_DIR/app"
+
+    log info "Running npm ci..."
+    if ! "$INSTALL_DIR/runtime/node/bin/npm" ci; then
+        if [ "$MODE" = "update" ]; then
+            rollback
+        fi
+        die "npm ci failed"
+    fi
+
+    log info "Running npm run build..."
+    if ! "$INSTALL_DIR/runtime/node/bin/npm" run build; then
+        if [ "$MODE" = "update" ]; then
+            rollback
+        fi
+        die "npm run build failed"
+    fi
+
+    if [ ! -f "$INSTALL_DIR/app/public/index.html" ]; then
+        if [ "$MODE" = "update" ]; then
+            rollback
+        fi
+        die "Build verification failed: public/index.html not found"
+    fi
+
+    log info "Application built successfully"
+}
+
+# ---------------------------------------------------------------------------
+# configure_tmdb() — prompt for TMDB API key
+# ---------------------------------------------------------------------------
+configure_tmdb() {
+    log info "Configuring TMDB API key..."
+
+    # Skip if .env already has a non-empty TMDB_API_KEY
+    if [ -f "$INSTALL_DIR/app/.env" ] && grep -qE '^TMDB_API_KEY=.+' "$INSTALL_DIR/app/.env"; then
+        log info "TMDB API key already configured — skipping"
+        return 0
+    fi
+
+    echo ""
+    echo "Rattin uses The Movie Database (TMDB) for movie/TV metadata."
+    echo "To get a free API key:"
+    echo "  1. Create an account at https://www.themoviedb.org/signup"
+    echo "  2. Go to https://www.themoviedb.org/settings/api"
+    echo "  3. Request an API key (choose 'Developer' option)"
+    echo ""
+
+    local TMDB_KEY
+    read -p "Paste your TMDB API key: " TMDB_KEY < /dev/tty
+
+    if [ -z "$TMDB_KEY" ]; then
+        log warn "No TMDB API key provided. You can add it later to $INSTALL_DIR/app/.env"
+        return 0
+    fi
+
+    # Validate key by hitting the TMDB API
+    local http_status
+    if command -v curl >/dev/null 2>&1; then
+        http_status="$(curl -s -o /dev/null -w '%{http_code}' "https://api.themoviedb.org/3/configuration?api_key=$TMDB_KEY")"
+    elif command -v wget >/dev/null 2>&1; then
+        http_status="$(wget --server-response --spider "https://api.themoviedb.org/3/configuration?api_key=$TMDB_KEY" 2>&1 | awk '/HTTP\//{print $2}' | tail -1)"
+    fi
+
+    if [ "$http_status" != "200" ]; then
+        log warn "TMDB API key appears invalid (HTTP $http_status), but saving it anyway. You can fix it later in $INSTALL_DIR/app/.env"
+    else
+        log info "TMDB API key validated successfully"
+    fi
+
+    echo "TMDB_API_KEY=$TMDB_KEY" > "$INSTALL_DIR/app/.env"
+    log info "TMDB API key saved to $INSTALL_DIR/app/.env"
+}
+
+# ---------------------------------------------------------------------------
+# set_permissions() — set ownership and file permissions
+# ---------------------------------------------------------------------------
+set_permissions() {
+    log info "Setting permissions..."
+
+    chown -R rattin:rattin "$INSTALL_DIR"
+    chmod 0600 "$INSTALL_DIR/app/.env"
+
+    if [ "$SELINUX_ENFORCING" = "true" ]; then
+        log info "Configuring SELinux contexts..."
+        semanage fcontext -a -t bin_t "$INSTALL_DIR/runtime/node/bin(/.*)?" 2>/dev/null || true
+        semanage fcontext -a -t bin_t "$INSTALL_DIR/runtime/bin(/.*)?" 2>/dev/null || true
+        restorecon -Rv "$INSTALL_DIR/runtime/" 2>/dev/null || true
+        semanage port -a -t http_port_t -p tcp 3000 2>/dev/null || true
+    fi
+
+    log info "Permissions set successfully"
+}
+
 # ==============================================================================
 # Main
 # ==============================================================================
@@ -463,11 +626,19 @@ main() {
     install_ffmpeg
     install_fpcalc
     install_build_tools
+    install_app
+    build_app
+
+    if [ "$MODE" = "fresh" ]; then
+        configure_tmdb
+    fi
+
+    set_permissions
 
     # Mark as installer-managed
     echo "$INSTALLER_VERSION" > "$INSTALL_DIR/.installer-version"
 
-    log info "Runtime dependencies installed successfully"
+    log info "Installation completed successfully"
 }
 
 main
