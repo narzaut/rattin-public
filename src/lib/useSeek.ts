@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type RefObject, type MutableRefObject } from "react";
 import { fetchStatus, fetchDuration } from "./api";
+import { isNative } from "./native-bridge";
 
 interface EffectiveTime {
   time: number;
@@ -219,13 +220,15 @@ export function useSeek(videoRef: RefObject<HTMLVideoElement | null>, deps: UseS
             setKnownDuration(file.duration);
           }
           const ext = (file.name || "").split(".").pop()!.toLowerCase();
-          const needsXcode = !["mp4", "m4v", "webm"].includes(ext);
-          if (needsXcode && !transcodeReadyRef.current) {
-            setIsLiveTranscode(true);
-          }
-          if (file.transcodeStatus === "ready" && !transcodeReadyRef.current) {
-            setTranscodeReady(true);
-            switchToTranscoded();
+          if (!isNative) {
+            const needsXcode = !["mp4", "m4v", "webm"].includes(ext);
+            if (needsXcode && !transcodeReadyRef.current) {
+              setIsLiveTranscode(true);
+            }
+            if (file.transcodeStatus === "ready" && !transcodeReadyRef.current) {
+              setTranscodeReady(true);
+              switchToTranscoded();
+            }
           }
         }
       } catch {}

@@ -24,6 +24,7 @@ public slots:
     void setSubtitleTrack(int index);
     void stop();
     QVariant getProperty(const QString &name) const;
+    void setProperty(const QString &name, const QVariant &value);
 
 signals:
     // Emitted to JavaScript

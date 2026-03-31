@@ -17,6 +17,12 @@ Window {
     property bool paused: false
     property bool playing: false
     property int volume: 100
+    property string mediaTitle: ""
+    property var subTracks: []
+    property var audioTracks: []
+    property int activeSub: 0
+    property int activeAudio: 1
+    property int subSize: 55
 
     function togglePause() {
         if (root.paused) bridge.resume()
@@ -34,6 +40,26 @@ Window {
         var sec = Math.floor(s % 60)
         if (h > 0) return h + ":" + (m < 10 ? "0" : "") + m + ":" + (sec < 10 ? "0" : "") + sec
         return m + ":" + (sec < 10 ? "0" : "") + sec
+    }
+
+    function refreshTracks() {
+        var tracks = bridge.getProperty("track-list")
+        if (!tracks || tracks.length === undefined) return
+        var subs = [], audios = []
+        for (var i = 0; i < tracks.length; i++) {
+            var t = tracks[i]
+            if (t.type === "sub") {
+                var label = t.title || t.lang || ("Subtitle " + t.id)
+                if (t.lang && t.title) label = t.title + " (" + t.lang + ")"
+                subs.push({ id: t.id, label: label })
+            } else if (t.type === "audio") {
+                var alabel = t.title || t.lang || ("Audio " + t.id)
+                if (t.lang && t.title) alabel = t.title + " (" + t.lang + ")"
+                audios.push({ id: t.id, label: alabel })
+            }
+        }
+        root.subTracks = subs
+        root.audioTracks = audios
     }
 
     // Transport object exposed to JS via QWebChannel
@@ -54,6 +80,8 @@ Window {
         function setAudioTrack(index) { bridge.setAudioTrack(index) }
         function setSubtitleTrack(index) { bridge.setSubtitleTrack(index) }
         function stop() { bridge.stop() }
+        function setTitle(title) { root.mediaTitle = title }
+        function setProperty(name, value) { bridge.setProperty(name, value) }
     }
 
     // Forward C++ bridge signals to transport + update local state
@@ -77,6 +105,7 @@ Window {
             root.playing = p
             mpvPlayer.visible = p
             controlsOverlay.visible = p
+            if (p) trackRefreshTimer.start()
         }
     }
 
@@ -110,6 +139,13 @@ Window {
         id: wChannel
     }
 
+    Timer {
+        id: trackRefreshTimer
+        interval: 2000
+        repeat: false
+        onTriggered: root.refreshTracks()
+    }
+
     // ── Native controls overlay (on top of mpv) ──
     Item {
         id: controlsOverlay
@@ -117,8 +153,9 @@ Window {
         visible: false
         z: 4
 
-        // Auto-hide controls after 3 seconds of no mouse movement
         property bool showControls: true
+        property int _savedVolume: 100
+
         Timer {
             id: hideTimer
             interval: 3000
@@ -128,6 +165,7 @@ Window {
         MouseArea {
             anchors.fill: parent
             hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
             onPositionChanged: {
                 controlsOverlay.showControls = true
                 hideTimer.restart()
@@ -136,7 +174,6 @@ Window {
             onDoubleClicked: root.toggleFullscreen()
         }
 
-        // Keyboard handling
         Keys.onPressed: function(event) {
             switch (event.key) {
             case Qt.Key_Space:
@@ -156,8 +193,20 @@ Window {
                 root.volume = Math.max(0, root.volume - 10)
                 bridge.setVolume(root.volume)
                 event.accepted = true; break
+            case Qt.Key_M:
+                if (root.volume > 0) {
+                    controlsOverlay._savedVolume = root.volume
+                    root.volume = 0
+                } else {
+                    root.volume = controlsOverlay._savedVolume || 100
+                }
+                bridge.setVolume(root.volume)
+                event.accepted = true; break
             case Qt.Key_Escape:
-                bridge.stop()
+                if (root.visibility === Window.FullScreen)
+                    root.showNormal()
+                else
+                    bridge.stop()
                 event.accepted = true; break
             case Qt.Key_F:
                 root.toggleFullscreen()
@@ -167,7 +216,7 @@ Window {
 
         focus: visible
 
-        // Top bar — title / back
+        // ── Top bar ──
         Rectangle {
             anchors.top: parent.top
             anchors.left: parent.left
@@ -180,29 +229,159 @@ Window {
                 GradientStop { position: 1.0; color: "transparent" }
             }
 
-            Text {
+            Row {
                 anchors.left: parent.left
-                anchors.leftMargin: 20
+                anchors.leftMargin: 16
                 anchors.verticalCenter: parent.verticalCenter
-                text: "← Back"
-                color: "white"
-                font.pixelSize: 16
+                spacing: 12
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bridge.stop()
+                Text {
+                    text: "\u2190"
+                    color: "white"
+                    font.pixelSize: 20
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: bridge.stop()
+                    }
+                }
+
+                Text {
+                    text: root.mediaTitle
+                    color: "white"
+                    font.pixelSize: 15
+                    elide: Text.ElideRight
+                    width: root.width - 100
                 }
             }
         }
 
-        // Bottom bar — progress + time
+        // ── Track picker popup ──
+        Rectangle {
+            id: trackPopup
+            visible: false
+            anchors.right: parent.right
+            anchors.bottom: bottomBar.top
+            anchors.rightMargin: 16
+            anchors.bottomMargin: 8
+            width: 260
+            height: trackCol.height + 24
+            radius: 8
+            color: "#E0181818"
+
+            MouseArea { anchors.fill: parent }
+
+            Column {
+                id: trackCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 12
+                spacing: 4
+
+                Text {
+                    text: "Subtitles"
+                    color: "#888"
+                    font.pixelSize: 11
+                    font.bold: true
+                    visible: root.subTracks.length > 0
+                }
+
+                Rectangle {
+                    width: parent.width; height: 28; radius: 4
+                    color: root.activeSub === 0 ? "#30c9a84c" : "transparent"
+                    visible: root.subTracks.length > 0
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Off"
+                        color: root.activeSub === 0 ? "#c9a84c" : "#ccc"
+                        font.pixelSize: 13
+                    }
+                    MouseArea {
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: { bridge.setProperty("sid", 0); root.activeSub = 0 }
+                    }
+                }
+
+                Repeater {
+                    model: root.subTracks
+                    Rectangle {
+                        width: trackCol.width; height: 28; radius: 4
+                        color: root.activeSub === modelData.id ? "#30c9a84c" : "transparent"
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 8
+                            anchors.right: parent.right; anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.label
+                            color: root.activeSub === modelData.id ? "#c9a84c" : "#ccc"
+                            font.pixelSize: 13; elide: Text.ElideRight
+                        }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: { bridge.setProperty("sid", modelData.id); root.activeSub = modelData.id }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Audio"; color: "#888"; font.pixelSize: 11; font.bold: true
+                    topPadding: 8; visible: root.audioTracks.length > 1
+                }
+
+                Repeater {
+                    model: root.audioTracks.length > 1 ? root.audioTracks : []
+                    Rectangle {
+                        width: trackCol.width; height: 28; radius: 4
+                        color: root.activeAudio === modelData.id ? "#30c9a84c" : "transparent"
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 8
+                            anchors.right: parent.right; anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.label
+                            color: root.activeAudio === modelData.id ? "#c9a84c" : "#ccc"
+                            font.pixelSize: 13; elide: Text.ElideRight
+                        }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: { bridge.setProperty("aid", modelData.id); root.activeAudio = modelData.id }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Size"; color: "#888"; font.pixelSize: 11; font.bold: true
+                    topPadding: 8; visible: root.subTracks.length > 0
+                }
+                Row {
+                    spacing: 8; visible: root.subTracks.length > 0
+                    Text {
+                        text: "A\u2212"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subSize = Math.max(20, root.subSize - 5); bridge.setProperty("sub-font-size", root.subSize) }
+                        }
+                    }
+                    Text { text: root.subSize.toString(); color: "#888"; font.pixelSize: 12; width: 24; horizontalAlignment: Text.AlignHCenter }
+                    Text {
+                        text: "A+"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subSize = Math.min(100, root.subSize + 5); bridge.setProperty("sub-font-size", root.subSize) }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Bottom bar ──
         Rectangle {
             id: bottomBar
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 80
+            height: 90
             opacity: controlsOverlay.showControls ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 200 } }
             gradient: Gradient {
@@ -210,66 +389,100 @@ Window {
                 GradientStop { position: 1.0; color: "#BF000000" }
             }
 
-            // Progress bar
             Rectangle {
                 id: progressBg
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: timeRow.top
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.bottomMargin: 4
-                height: 4
-                radius: 2
-                color: "#40ffffff"
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.bottom: controlsRow.top
+                anchors.leftMargin: 16; anchors.rightMargin: 16; anchors.bottomMargin: 4
+                height: 4; radius: 2; color: "#40ffffff"
 
                 Rectangle {
-                    width: root.duration > 0
-                        ? parent.width * (root.currentTime / root.duration)
-                        : 0
-                    height: parent.height
-                    radius: 2
-                    color: "#e94560"
+                    width: root.duration > 0 ? parent.width * (root.currentTime / root.duration) : 0
+                    height: parent.height; radius: 2; color: "#e94560"
                 }
-
+                Rectangle {
+                    visible: root.duration > 0
+                    x: root.duration > 0 ? parent.width * (root.currentTime / root.duration) - 6 : 0
+                    y: -4; width: 12; height: 12; radius: 6; color: "#e94560"
+                    opacity: controlsOverlay.showControls ? 1 : 0
+                }
                 MouseArea {
-                    anchors.fill: parent
-                    anchors.topMargin: -10
-                    anchors.bottomMargin: -10
-                    onClicked: function(mouse) {
-                        var ratio = mouse.x / parent.width
-                        bridge.seek(ratio * root.duration)
+                    anchors.fill: parent; anchors.topMargin: -12; anchors.bottomMargin: -12
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: function(mouse) { bridge.seek(Math.max(0, Math.min(1, mouse.x / parent.width)) * root.duration) }
+                    onPositionChanged: function(mouse) {
+                        if (pressed) bridge.seek(Math.max(0, Math.min(1, mouse.x / parent.width)) * root.duration)
                     }
                 }
             }
 
-            // Time display + play/pause
-            Row {
-                id: timeRow
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.bottomMargin: 12
-                spacing: 16
+            Item {
+                id: controlsRow
+                anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+                anchors.leftMargin: 16; anchors.rightMargin: 16; anchors.bottomMargin: 12
+                height: 30
 
                 Text {
-                    text: root.paused ? "▶" : "⏸"
-                    color: "white"
-                    font.pixelSize: 20
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.togglePause()
-                    }
+                    id: playBtn; text: root.paused ? "\u25B6" : "\u23F8"
+                    color: "white"; font.pixelSize: 22
+                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                    MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.togglePause() }
                 }
 
                 Text {
                     text: root.formatTime(root.currentTime) + " / " + root.formatTime(root.duration)
-                    color: "#cccccc"
-                    font.pixelSize: 14
-                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#cccccc"; font.pixelSize: 13
+                    anchors.left: playBtn.right; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    id: fullscreenBtn
+                    text: root.visibility === Window.FullScreen ? "\u2750" : "\u26F6"
+                    color: "white"; font.pixelSize: 18
+                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleFullscreen() }
+                }
+
+                Text {
+                    id: subBtn; text: "CC"
+                    color: root.activeSub > 0 ? "#c9a84c" : "#888"
+                    font.pixelSize: 13; font.bold: true
+                    anchors.right: fullscreenBtn.left; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                    visible: root.subTracks.length > 0 || root.audioTracks.length > 1
+                    MouseArea {
+                        anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor
+                        onClicked: { root.refreshTracks(); trackPopup.visible = !trackPopup.visible }
+                    }
+                }
+
+                Row {
+                    anchors.right: subBtn.visible ? subBtn.left : fullscreenBtn.left
+                    anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+
+                    Text {
+                        text: root.volume === 0 ? "\uD83D\uDD07" : root.volume < 50 ? "\uD83D\uDD09" : "\uD83D\uDD0A"
+                        color: "white"; font.pixelSize: 16; anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (root.volume > 0) { controlsOverlay._savedVolume = root.volume; root.volume = 0 }
+                                else { root.volume = controlsOverlay._savedVolume || 100 }
+                                bridge.setVolume(root.volume)
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 80; height: 3; radius: 2; color: "#40ffffff"; anchors.verticalCenter: parent.verticalCenter
+                        Rectangle { width: parent.width * (root.volume / 100); height: parent.height; radius: 2; color: "white" }
+                        Rectangle { x: parent.width * (root.volume / 100) - 6; y: -4.5; width: 12; height: 12; radius: 6; color: "white" }
+                        MouseArea {
+                            anchors.fill: parent; anchors.topMargin: -10; anchors.bottomMargin: -10; cursorShape: Qt.PointingHandCursor
+                            onClicked: function(mouse) { var v = Math.round(Math.max(0, Math.min(100, (mouse.x / parent.width) * 100))); root.volume = v; bridge.setVolume(v) }
+                            onPositionChanged: function(mouse) { if (pressed) { var v = Math.round(Math.max(0, Math.min(100, (mouse.x / parent.width) * 100))); root.volume = v; bridge.setVolume(v) } }
+                        }
+                    }
                 }
             }
         }
