@@ -32,6 +32,7 @@
   flex-direction: column;
   background: rgba(0, 0, 0, 0.8);
   z-index: 10;
+  pointer-events: none;
 }
 
 .player-loading-back {
@@ -43,6 +44,7 @@
   color: var(--text-primary);
   transition: background var(--transition);
   z-index: 1;
+  pointer-events: auto;
 }
 
 .player-loading-back:hover {
