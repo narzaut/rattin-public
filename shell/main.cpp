@@ -146,9 +146,8 @@ int main(int argc, char *argv[])
             QString("http://localhost:%1?native=1").arg(port));
         engine->rootContext()->setContextProperty("bridge", bridge);
 
-        engine->load(QUrl("qrc:/main.qml"));
-
-        // After QML loads, find MpvObject and attach it to the bridge
+        // Connect BEFORE load — load() is synchronous for qrc: URLs,
+        // so objectCreated fires during load() and would be missed otherwise.
         QObject::connect(engine, &QQmlApplicationEngine::objectCreated, [bridge](QObject *obj) {
             if (!obj) return;
             auto *mpvObj = obj->findChild<MpvObject *>();
@@ -159,6 +158,8 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "[shell] WARNING: MpvObject not found in QML\n");
             }
         });
+
+        engine->load(QUrl("qrc:/main.qml"));
     });
 
     // app.exec() starts the event loop — this is when waitForServer's
