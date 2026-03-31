@@ -100,11 +100,20 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               )}
             </div>
             <p className="pair-desc">
-              Route torrents through a debrid service for instant streaming, full seeking, and IP privacy.
-              You need your own Real-Debrid account.
+              Route torrents through a{" "}
+              <a href="https://real-debrid.com" target="_blank" rel="noopener noreferrer" className="settings-link">
+                Real-Debrid
+              </a>{" "}
+              service for instant streaming, full seeking, and IP privacy.
+              Requires your own account — this is optional.
             </p>
 
-            {status?.configured && status?.valid && status?.premium && (
+            {!status ? (
+              <div className="settings-skeleton">
+                <div className="settings-skeleton-line settings-skeleton-line-long" />
+                <div className="settings-skeleton-line settings-skeleton-line-short" />
+              </div>
+            ) : status.configured && status.valid && status.premium ? (
               <div className="settings-info">
                 <div className="settings-info-row">
                   <span className="settings-info-label">Account</span>
@@ -122,9 +131,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   Disconnect
                 </button>
               </div>
-            )}
-
-            {(!status?.configured || !status?.valid) && (
+            ) : (
               <div className="settings-form">
                 <input
                   className="settings-input"
