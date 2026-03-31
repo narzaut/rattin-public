@@ -115,7 +115,7 @@ export default function QrScanner({ onScan, onClose }: QrScannerProps) {
           <form onSubmit={handleManualSubmit}>
             <input
               type="url"
-              placeholder="https://rattin.example.com/api/rc/auth?..."
+              placeholder="https://your-server/api/rc/auth?..."
               value={manualUrl}
               onChange={(e) => setManualUrl(e.target.value)}
               autoFocus={!hasDetector}
