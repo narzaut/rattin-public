@@ -310,7 +310,7 @@ app.post("/api/resolve-formats", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "infoHashes array required" });
   }
 
-  const results: Record<string, { native: boolean; files: string[] }> = {};
+  const results: Record<string, { native: boolean; files: string[]; numPeers: number }> = {};
 
   await Promise.all(infoHashes.map((hash) => {
     return new Promise<void>((resolve) => {
@@ -319,7 +319,7 @@ app.post("/api/resolve-formats", async (req: Request, res: Response) => {
       if (existing && existing.files.length > 0) {
         const files = existing.files.map((f) => f.name);
         const native = files.some((name) => !needsTranscode(path.extname(name).toLowerCase()));
-        results[hash] = { native, files };
+        results[hash] = { native, files, numPeers: existing.numPeers };
         resolve();
         return;
       }
@@ -341,7 +341,7 @@ app.post("/api/resolve-formats", async (req: Request, res: Response) => {
           clearTimeout(timeout);
           const files = t.files.map((f) => f.name);
           const native = files.some((name) => !needsTranscode(path.extname(name).toLowerCase()));
-          results[hash] = { native, files };
+          results[hash] = { native, files, numPeers: t.numPeers };
           // Don't destroy — keep for potential playback
           t.files.forEach((f) => { try { f.deselect(); } catch {} });
           resolve();
@@ -354,6 +354,22 @@ app.post("/api/resolve-formats", async (req: Request, res: Response) => {
     });
   }));
 
+  res.json(results);
+});
+
+// Lightweight endpoint to poll live peer counts for loaded torrents
+app.post("/api/live-peers", (req: Request, res: Response) => {
+  const { infoHashes } = req.body as { infoHashes: string[] };
+  if (!infoHashes || !Array.isArray(infoHashes)) {
+    return res.status(400).json({ error: "infoHashes array required" });
+  }
+  const results: Record<string, { numPeers: number; downloadSpeed: number }> = {};
+  for (const hash of infoHashes) {
+    const t = client.torrents.find((t) => t.infoHash === hash);
+    if (t) {
+      results[hash] = { numPeers: t.numPeers, downloadSpeed: t.downloadSpeed };
+    }
+  }
   res.json(results);
 });
 

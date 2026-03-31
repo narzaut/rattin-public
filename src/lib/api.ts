@@ -79,6 +79,16 @@ export async function playTorrent(infoHash: string, name: string, season?: numbe
   return res.json();
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchLivePeers(infoHashes: string[]): Promise<Record<string, { numPeers: number; downloadSpeed: number }>> {
+  const res = await fetch("/api/live-peers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ infoHashes }),
+  });
+  return res.json();
+}
+
 export async function checkAvailability(items: Array<{ id: number; title: string; year?: number; type: string }>): Promise<Set<number>> {
   const res = await fetch("/api/check-availability", {
     method: "POST",
