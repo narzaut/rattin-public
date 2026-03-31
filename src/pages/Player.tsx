@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { usePlayer } from "../lib/PlayerContext";
 import { usePlayerLoading } from "../lib/usePlayerLoading";
@@ -7,6 +7,7 @@ import { useAudioTracks } from "../lib/useAudioTracks";
 import { useSeek } from "../lib/useSeek";
 import { useIntro } from "../lib/useIntro";
 import { formatTime, formatBytes } from "../lib/utils";
+import { playTorrent, fetchLivePeers } from "../lib/api";
 import { encode } from "uqr";
 import "./Player.css";
 
@@ -14,17 +15,79 @@ export default function Player() {
   const { infoHash, fileIndex } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { videoRef, startStream, active, effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, rcQrRequested, setRcSessionId, setRcAuthToken, introRangeRef, volume } = usePlayer();
+  const { videoRef, startStream, stopStream, active, effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, rcQrRequested, setRcSessionId, setRcAuthToken, introRangeRef, volume } = usePlayer();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = location.state as any;
-  const tags: string[] = state?.tags || active?.tags || [];
-  const mediaTitle: string = state?.title || active?.title || "";
+  const [currentTags, setCurrentTags] = useState<string[]>(state?.tags || []);
+  const [currentTitle, setCurrentTitle] = useState<string>(state?.title || "");
+  const tags: string[] = currentTags.length > 0 ? currentTags : (active?.tags || []);
+  const mediaTitle: string = currentTitle || active?.title || "";
   const preSelectedAudio: number | null = state?.audioTrack ?? null;
   const preSelectedSub: string | null = state?.subtitle ?? null;
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Source switcher state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sources, setSources] = useState<any[]>(state?.sources || []);
+  const [showSources, setShowSources] = useState(false);
+  const [switchingSource, setSwitchingSource] = useState<string | null>(null);
+  const [livePeers, setLivePeers] = useState<Record<string, { numPeers: number; downloadSpeed: number }>>({});
+  const livePeerTimer = useRef<ReturnType<typeof setInterval>>();
+
+  // Poll live peers when source panel is open
+  useEffect(() => {
+    if (!showSources || sources.length === 0) {
+      clearInterval(livePeerTimer.current);
+      return;
+    }
+    const poll = () => {
+      const hashes = sources.map((s: { infoHash: string }) => s.infoHash).filter(Boolean);
+      if (hashes.length > 0) fetchLivePeers(hashes).then(setLivePeers).catch(() => {});
+    };
+    poll();
+    livePeerTimer.current = setInterval(poll, 3000);
+    return () => clearInterval(livePeerTimer.current);
+  }, [showSources, sources]);
+
+  // Switch to a different source
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSwitchSource = useCallback(async (source: any) => {
+    if (source.infoHash === active?.infoHash) {
+      setShowSources(false);
+      return;
+    }
+    setSwitchingSource(source.infoHash);
+    try {
+      // Stop current stream (saves position, kills ffmpeg, cleans up)
+      stopStream();
+      // Start the new torrent
+      const result = await playTorrent(
+        source.infoHash, source.name,
+        state?.pickerSeason, state?.pickerEpisode,
+      );
+      const newTags = result.tags || source.tags || [];
+      setCurrentTags(newTags);
+      // Navigate to the new stream URL (replace so back button goes to detail)
+      navigate(`/play/${result.infoHash}/${result.fileIndex}`, {
+        replace: true,
+        state: {
+          ...state,
+          tags: newTags,
+          sources,
+        },
+      });
+      // Start the new stream
+      startStream(result.infoHash, result.fileIndex, mediaTitle, newTags);
+      setShowSources(false);
+    } catch {
+      // If switch fails, stay on current
+    } finally {
+      setSwitchingSource(null);
+    }
+  }, [active, stopStream, startStream, navigate, state, sources, mediaTitle]);
 
   const {
     loading, setLoading, loadingReason, setLoadingReason,
@@ -68,6 +131,20 @@ export default function Player() {
   const { introRange, showSkipIntro, handleSkipIntro } = useIntro(videoRef, {
     infoHash: infoHash!, fileIndex: fileIndex!, introRangeRef, getEffectiveTime, seekTo, location, mediaTitle,
   });
+
+  // Detect stuck/slow source — show warning after 15s of 0 speed while incomplete
+  const [showSlowWarning, setShowSlowWarning] = useState(false);
+  const stuckTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    clearTimeout(stuckTimer.current);
+    if (dlProgress >= 1 || dlSpeed > 0 || !active) {
+      setShowSlowWarning(false);
+      return;
+    }
+    // Start timer when speed is 0 and download isn't complete
+    stuckTimer.current = setTimeout(() => setShowSlowWarning(true), 15000);
+    return () => clearTimeout(stuckTimer.current);
+  }, [dlSpeed, dlProgress, active]);
 
   // Move video element into the fullscreen container
   useEffect(() => {
@@ -227,12 +304,20 @@ export default function Player() {
       )}
 
       {loading && (
-        <div className="player-loading">
+        <div className={`player-loading${showSources ? " sources-open" : ""}`}>
           <button className="player-loading-back" onClick={() => navigate(-1)}>
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
               <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
             </svg>
           </button>
+          {sources.length > 1 && (
+            <button className="player-loading-sources" onClick={() => setShowSources(true)}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
+              </svg>
+              Switch Source
+            </button>
+          )}
           <div className="player-loading-center">
             <div className="player-loading-spinner" />
             <p className="player-loading-msg" key={`${loadingReason}-${loadingMsg}`}>
@@ -252,6 +337,13 @@ export default function Player() {
             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
           </svg>
         </button>
+      )}
+
+      {showSlowWarning && sources.length > 1 && !showSources && (
+        <div className="player-slow-warning" onClick={(e) => e.stopPropagation()}>
+          <span>No data from peers — source may be dead</span>
+          <button onClick={() => setShowSources(true)}>Switch Source</button>
+        </div>
       )}
 
       <div className={`player-overlay ${showControls ? "visible" : ""}`}>
@@ -344,6 +436,17 @@ export default function Player() {
                 ))}
               </select>
             )}
+            {sources.length > 1 && (
+              <button
+                className="player-source-btn"
+                onClick={() => setShowSources((v) => !v)}
+                title="Switch source"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
+                </svg>
+              </button>
+            )}
             <button
               className="player-fullscreen"
               onClick={() => {
@@ -358,6 +461,57 @@ export default function Player() {
           </div>
         </div>
       </div>
+
+      {showSources && sources.length > 1 && (
+        <div className="player-sources-overlay" onClick={() => setShowSources(false)}>
+          <div className="player-sources-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="player-sources-header">
+              <h3>Switch Source</h3>
+              <button className="player-sources-close" onClick={() => setShowSources(false)}>&#10005;</button>
+            </div>
+            <div className="player-sources-list">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {sources.map((s: any) => {
+                const live = livePeers[s.infoHash];
+                const peerCount = live ? live.numPeers : null;
+                const isLow = peerCount !== null && peerCount < 5;
+                const isCurrent = s.infoHash === active?.infoHash;
+                const isSwitching = switchingSource === s.infoHash;
+                return (
+                  <button
+                    key={s.infoHash}
+                    className={`player-source-item${isCurrent ? " active" : ""}`}
+                    onClick={() => handleSwitchSource(s)}
+                    disabled={isSwitching}
+                  >
+                    <div className="player-source-item-main">
+                      <span className="player-source-item-name">{s.name}</span>
+                      <div className="player-source-item-tags">
+                        {isCurrent && <span className="player-source-tag current">Playing</span>}
+                        {s.seasonPack && <span className="player-source-tag season-pack">Season Pack</span>}
+                        {s.tags?.map((t: string) => (
+                          <span key={t} className={`player-source-tag${t === "Native" ? " native" : ""}`}>{t === "Native" ? "Full Seek" : t}</span>
+                        ))}
+                        {isLow && <span className="player-source-tag low-peers">Low Peers</span>}
+                      </div>
+                    </div>
+                    <div className="player-source-item-meta">
+                      <span className="player-source-provider">{s.source?.toUpperCase()}</span>
+                      <span className={`player-source-seeds${isLow ? " low" : ""}`}>
+                        <span className={`player-source-seed-dot${isLow ? " low" : ""}`} />
+                        {peerCount !== null ? peerCount : s.seeders}
+                        {peerCount !== null && <span className="player-source-seed-label">live</span>}
+                      </span>
+                      <span className="player-source-size">{formatBytes(s.size)}</span>
+                      {isSwitching && <span className="player-source-switching">Switching...</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReconnectQr && reconnectQrSvg && (
         <div className="player-reconnect-qr-overlay" onClick={(e) => e.stopPropagation()}>

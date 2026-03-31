@@ -49,6 +49,38 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* When source panel is open, don't block it */
+.player-loading.sources-open {
+  pointer-events: none;
+}
+.player-loading.sources-open .player-loading-back,
+.player-loading.sources-open .player-loading-sources {
+  pointer-events: auto;
+}
+
+.player-loading-sources {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all var(--transition);
+  z-index: 1;
+}
+
+.player-loading-sources:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+}
+
 .player-loading-center {
   flex: 1;
   display: flex;
@@ -437,4 +469,260 @@
 @keyframes skipIntroFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Source switcher button ── */
+.player-source-btn {
+  padding: 4px;
+  color: var(--text-secondary);
+  transition: color var(--transition), transform var(--transition);
+}
+
+.player-source-btn:hover {
+  color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+/* ── Source switcher panel ── */
+.player-sources-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.player-sources-panel {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  background: rgba(12, 12, 18, 0.95);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.player-sources-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.player-sources-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.player-sources-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.player-sources-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.player-sources-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.player-source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background var(--transition);
+  border: 1px solid transparent;
+}
+
+.player-source-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
+}
+
+.player-source-item.active {
+  background: rgba(201, 168, 76, 0.06);
+  border-color: rgba(201, 168, 76, 0.2);
+}
+
+.player-source-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-source-item-name {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+
+.player-source-item-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.player-source-tag {
+  padding: 1px 6px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.player-source-tag.current {
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--accent-bright);
+}
+
+.player-source-tag.season-pack {
+  background: var(--accent-subtle);
+  color: var(--accent-bright);
+}
+
+.player-source-tag.native {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--green);
+}
+
+.player-source-tag.low-peers {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.player-source-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.player-source-provider {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--accent-subtle);
+  color: var(--accent-bright);
+}
+
+.player-source-seeds {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--green);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-source-seeds.low {
+  color: #ef4444;
+}
+
+.player-source-seed-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
+
+.player-source-seed-dot.low {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+.player-source-seed-label {
+  font-size: 0.55rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  opacity: 0.6;
+}
+
+.player-source-size {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-source-switching {
+  font-size: 0.68rem;
+  color: var(--accent-bright);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Slow source warning banner ── */
+.player-slow-warning {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  font-size: 0.82rem;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-out;
+  pointer-events: auto;
+}
+
+.player-slow-warning button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background var(--transition);
+}
+
+.player-slow-warning button:hover {
+  background: rgba(239, 68, 68, 0.35);
 }

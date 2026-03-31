@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { fetchMovie, fetchTV, fetchSeason, fetchReviews, autoPlay, searchStreams, playTorrent, fetchAudioTracks, fetchSubtitleTracks, backdrop, poster, still } from "../lib/api";
+import { fetchMovie, fetchTV, fetchSeason, fetchReviews, autoPlay, searchStreams, playTorrent, fetchAudioTracks, fetchSubtitleTracks, fetchLivePeers, backdrop, poster, still } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
 import { useRemoteMode } from "../lib/PlayerContext";
 import "./Detail.css";
@@ -44,6 +44,23 @@ export default function Detail() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reviews, setReviews] = useState<any>(null);
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
+  const [livePeers, setLivePeers] = useState<Record<string, { numPeers: number; downloadSpeed: number }>>({});
+  const livePeerTimer = useRef<ReturnType<typeof setInterval>>();
+
+  // Poll live peer counts while picker is open
+  useEffect(() => {
+    if (!showPicker || !streams || streams.length === 0) {
+      clearInterval(livePeerTimer.current);
+      return;
+    }
+    const poll = () => {
+      const hashes = streams.map((s: { infoHash: string }) => s.infoHash).filter(Boolean);
+      if (hashes.length > 0) fetchLivePeers(hashes).then(setLivePeers).catch(() => {});
+    };
+    poll(); // immediate first poll
+    livePeerTimer.current = setInterval(poll, 3000);
+    return () => clearInterval(livePeerTimer.current);
+  }, [showPicker, streams]);
 
   useEffect(() => {
     setData(null);
@@ -204,6 +221,9 @@ export default function Detail() {
     }
     if (prePlay.selectedAudio !== null) navState.audioTrack = prePlay.selectedAudio;
     if (prePlay.selectedSub) navState.subtitle = prePlay.selectedSub;
+    if (streams) navState.sources = streams;
+    if (pickerSeason != null) navState.pickerSeason = pickerSeason;
+    if (pickerEpisode != null) navState.pickerEpisode = pickerEpisode;
     navigate(`/play/${prePlay.infoHash}/${prePlay.fileIndex}`, { state: navState });
     setPrePlay(null);
   }
@@ -593,7 +613,11 @@ export default function Detail() {
                 <div className="picker-empty">No streams found</div>
               ) : (
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                streams.map((s: any) => (
+                streams.map((s: any) => {
+                  const live = livePeers[s.infoHash];
+                  const peerCount = live ? live.numPeers : null;
+                  const isLow = peerCount !== null && peerCount < 5;
+                  return (
                   <button
                     key={s.infoHash}
                     className="picker-item"
@@ -606,18 +630,21 @@ export default function Detail() {
                         {s.tags.map((t: string) => (
                           <span key={t} className={`picker-tag${t === "Native" ? " native" : ""}`}>{t === "Native" ? "Full Seek" : t}</span>
                         ))}
+                        {isLow && <span className="picker-tag low-peers">Low Peers</span>}
                       </div>
                     </div>
                     <div className="picker-item-meta">
                       <span className="picker-source">{s.source.toUpperCase()}</span>
-                      <span className="picker-seeds">
-                        <span className="picker-seed-dot" />
-                        {s.seeders}
+                      <span className={`picker-seeds${isLow ? " low" : ""}`}>
+                        <span className={`picker-seed-dot${isLow ? " low" : ""}`} />
+                        {peerCount !== null ? peerCount : s.seeders}
+                        {peerCount !== null && <span className="picker-seed-label">live</span>}
                       </span>
                       <span className="picker-size">{formatBytes(s.size)}</span>
                     </div>
                   </button>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

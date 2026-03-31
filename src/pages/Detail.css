@@ -579,6 +579,11 @@
   color: var(--green);
 }
 
+.picker-tag.low-peers {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
 .picker-item-meta {
   display: flex;
   align-items: center;
@@ -612,6 +617,23 @@
   border-radius: 50%;
   background: var(--green);
   box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
+
+.picker-seed-dot.low {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+.picker-seeds.low {
+  color: #ef4444;
+}
+
+.picker-seed-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  opacity: 0.6;
 }
 
 .picker-size {
