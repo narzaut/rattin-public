@@ -19,7 +19,11 @@ void MpvBridge::attachMpv(MpvObject *mpv)
 
 void MpvBridge::play(const QString &url)
 {
-    if (!m_mpv) return;
+    if (!m_mpv) {
+        fprintf(stderr, "[bridge] play() called but m_mpv is null!\n");
+        return;
+    }
+    fprintf(stderr, "[bridge] loadfile: %s\n", url.toUtf8().constData());
     m_mpv->command(QVariantList{"loadfile", url});
     m_isPlaying = true;
     emit isPlayingChanged(true);
