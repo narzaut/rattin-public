@@ -27,7 +27,7 @@ Window {
         url: initialUrl
         z: 2
 
-        webChannel: cppWebChannel
+        webChannel: channel
 
         // Forward JS console.log to stderr for debugging
         onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceId) {
@@ -38,7 +38,10 @@ Window {
         // qwebchannel.js is injected into MainWorld by C++ (QWebEngineProfile::scripts).
     }
 
-    // QWebChannel is created in C++ with bridge registered, passed as cppWebChannel
+    // WebChannel — bridge is registered on this from C++ after QML loads
+    WebChannel {
+        id: channel
+    }
 
     Connections {
         target: bridge
