@@ -7,7 +7,7 @@ import { useAudioTracks } from "../lib/useAudioTracks";
 import { useSeek } from "../lib/useSeek";
 import { useIntro } from "../lib/useIntro";
 import { formatTime, formatBytes } from "../lib/utils";
-import { playTorrent, fetchLivePeers } from "../lib/api";
+import { playTorrent, fetchLivePeers, fetchLanIp } from "../lib/api";
 import { encode } from "uqr";
 import { isNative, waitForBridge, mpvPlay, mpvPause, mpvResume, mpvTogglePause, mpvSeek, mpvSetVolume, mpvSetAudioTrack, mpvSetSubtitleTrack, mpvStop, mpvSetTitle, onMpvTimeChanged, onMpvDurationChanged, onMpvEofReached, onMpvPauseChanged } from "../lib/native-bridge";
 import "./Player.css";
@@ -342,9 +342,17 @@ export default function Player() {
 
   // Generate QR code for remote reconnection — only when phone explicitly requests it
   const showReconnectQr = rcSessionId && rcAuthToken && rcQrRequested && !rcRemoteConnected;
+  const [reconnectOrigin, setReconnectOrigin] = useState<string | null>(null);
+  useEffect(() => {
+    if (!showReconnectQr) { setReconnectOrigin(null); return; }
+    if (!isNative) { setReconnectOrigin(window.location.origin); return; }
+    fetchLanIp()
+      .then(({ ip, port }) => setReconnectOrigin(ip ? `http://${ip}:${port}` : window.location.origin))
+      .catch(() => setReconnectOrigin(window.location.origin));
+  }, [showReconnectQr]);
   const reconnectQrSvg = useMemo(() => {
-    if (!showReconnectQr) return null;
-    const url = `${window.location.origin}/api/rc/auth?session=${rcSessionId}&token=${rcAuthToken}`;
+    if (!showReconnectQr || !reconnectOrigin) return null;
+    const url = `${reconnectOrigin}/api/rc/auth?session=${rcSessionId}&token=${rcAuthToken}`;
     try {
       const { data, size } = encode(url, { ecc: "L" });
       const mod = 3;
@@ -357,7 +365,7 @@ export default function Player() {
             paths += `M${margin + x * mod},${margin + y * mod}h${mod}v${mod}h-${mod}z`;
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}"><rect width="${total}" height="${total}" fill="#fff" rx="4"/><path d="${paths}" fill="#000"/></svg>`;
     } catch { return null; }
-  }, [showReconnectQr, rcSessionId, rcAuthToken]);
+  }, [showReconnectQr, reconnectOrigin, rcSessionId, rcAuthToken]);
 
   return (
     <div className="player-page" ref={pageRef} onClick={handlePageClick}>
