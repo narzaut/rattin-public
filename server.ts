@@ -169,7 +169,7 @@ if (isMain) {
   process.on("SIGTERM", cleanup);
 
   const PORT = process.env.PORT || 3000;
-  const HOST = process.env.HOST || "0.0.0.0";
+  const HOST = process.env.HOST || "127.0.0.1";
   app.listen(PORT, HOST, () => {
     console.log(`[${new Date().toISOString().slice(11, 23)}] INFO  Rattin running at http://${HOST}:${PORT}`);
   });

@@ -87,11 +87,22 @@ download_tools() {
         skip "linuxdeploy-plugin-qt already downloaded"
     fi
 
-    # Node.js standalone
+    # Node.js standalone (with checksum verification)
     if [ ! -x "$TOOLS_DIR/node/bin/node" ]; then
         log "Downloading Node.js v${NODE_VERSION}..."
         curl -fSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
             -o "$TOOLS_DIR/node.tar.xz"
+        curl -fSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+            -o "$TOOLS_DIR/node.shasums"
+        local expected_hash
+        expected_hash="$(grep "node-v${NODE_VERSION}-linux-x64.tar.xz" "$TOOLS_DIR/node.shasums" | awk '{print $1}')"
+        local actual_hash
+        actual_hash="$(sha256sum "$TOOLS_DIR/node.tar.xz" | awk '{print $1}')"
+        if [ "$expected_hash" != "$actual_hash" ]; then
+            rm -f "$TOOLS_DIR/node.tar.xz" "$TOOLS_DIR/node.shasums"
+            die "Node.js checksum mismatch! Expected: $expected_hash Got: $actual_hash"
+        fi
+        rm -f "$TOOLS_DIR/node.shasums"
         mkdir -p "$TOOLS_DIR/node"
         tar -xf "$TOOLS_DIR/node.tar.xz" -C "$TOOLS_DIR/node" --strip-components=1
         rm -f "$TOOLS_DIR/node.tar.xz"

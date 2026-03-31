@@ -1,5 +1,8 @@
 // Audio fingerprint extraction (via fpcalc) and cross-correlation for intro detection.
 import { execFile } from "child_process";
+import { mkdtempSync } from "fs";
+import { tmpdir } from "os";
+import path from "path";
 import type { CrossCorrelationResult, FingerprintResult } from "./types.js";
 
 // Count set bits in a 32-bit integer
@@ -101,7 +104,8 @@ export function extractFingerprint(filePath: string, durationSec: number = 300):
   return new Promise((resolve, reject) => {
     // Use ffmpeg to extract limited audio, pipe to fpcalc via temp wav
     // fpcalc's -length flag doesn't reliably limit analysis on some formats
-    const tmpWav = `/tmp/fp_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`;
+    const tmpDir = mkdtempSync(path.join(tmpdir(), "magnet-fp-"));
+    const tmpWav = path.join(tmpDir, "audio.wav");
     execFile(
       "ffmpeg",
       ["-i", filePath, "-t", String(durationSec), "-ac", "1", "-ar", "16000", "-f", "wav", tmpWav, "-y", "-loglevel", "error"],
@@ -113,8 +117,8 @@ export function extractFingerprint(filePath: string, durationSec: number = 300):
           ["-raw", "-json", tmpWav],
           { timeout: FPCALC_TIMEOUT },
           (err, stdout) => {
-            // Clean up temp file
-            import("fs").then(fs => fs.unlink(tmpWav, () => {}));
+            // Clean up temp dir
+            import("fs").then(fs => fs.rm(tmpDir, { recursive: true, force: true }, () => {}));
             if (err) return reject(err);
             try {
               const data = JSON.parse(stdout);
