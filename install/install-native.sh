@@ -65,6 +65,10 @@ done
 # ---------------------------------------------------------------------------
 if [ "$UNINSTALL" = true ]; then
     log "Uninstalling Rattin..."
+    # Kill any running rattin processes (shell + server)
+    pkill -f "rattin-shell" 2>/dev/null || true
+    pkill -f "rattin/.*server\\.ts" 2>/dev/null || true
+    sleep 0.5
     rm -f "$BIN_DIR/rattin"
     rm -f "$DESKTOP_DIR/rattin.desktop"
     rm -f "$ICON_DIR/rattin.svg" "$ICON_DIR/rattin.png"
