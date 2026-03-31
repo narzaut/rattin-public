@@ -175,10 +175,10 @@ APP_PORT=9630
 OPEN_PORT=false
 HAS_FIREWALL=false
 
-if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -q "Status: active"; then
     HAS_FIREWALL=true
     # Already open? Skip the prompt.
-    if ufw status | grep -q "$APP_PORT"; then
+    if sudo ufw status | grep -q "$APP_PORT"; then
         log "Port $APP_PORT already open in ufw"
         HAS_FIREWALL=false  # no action needed
     fi
