@@ -158,6 +158,41 @@ describe("parseTorrentioMeta", () => {
     const meta = parseTorrentioMeta(title);
     assert.equal(meta.foreignOnly, false);
   });
+
+  // Text language code parsing
+  it("extracts language flags from text codes like iTA.ENG", () => {
+    const title = "I.Simpson.S15E01.WEBMux.720p.x264.iTA.ENG.AC3\nfile.mkv\n👤 5 💾 355 MB ⚙️ 1337x";
+    const meta = parseTorrentioMeta(title);
+    assert.ok(meta.languages.includes("🇮🇹"));
+    assert.ok(meta.languages.includes("🇬🇧"));
+  });
+
+  it("extracts language flags from bracketed codes [ENG+ITA]", () => {
+    const title = "Movie [SUB ITA ENG]\nfile.mkv\n👤 10 💾 500 MB ⚙️ TPB";
+    const meta = parseTorrentioMeta(title);
+    assert.ok(meta.languages.includes("🇮🇹"));
+    assert.ok(meta.languages.includes("🇬🇧"));
+  });
+
+  it("does not duplicate flags from both emoji and text codes", () => {
+    const title = "Movie.ENG\nfile.mkv\n👤 10 💾 500 MB ⚙️ TPB\n🇬🇧";
+    const meta = parseTorrentioMeta(title);
+    const gbCount = meta.languages.filter((f) => f === "🇬🇧").length;
+    assert.equal(gbCount, 1);
+  });
+
+  it("detects multi 8 lang pattern", () => {
+    const title = "Movie (Multi 8 lang)(MultiSub)\nfile.mkv\n👤 1 💾 500 MB ⚙️ TPB";
+    const meta = parseTorrentioMeta(title);
+    assert.equal(meta.multiAudio, true);
+    assert.equal(meta.hasSubs, true);
+  });
+
+  it("not foreign-only when ENG text code found", () => {
+    const title = "Movie.iTA.ENG.AC3\nfile.mkv\n👤 5 💾 355 MB ⚙️ 1337x";
+    const meta = parseTorrentioMeta(title);
+    assert.equal(meta.foreignOnly, false);
+  });
 });
 
 // ---------------------------------------------------------------------------
