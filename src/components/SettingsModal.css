@@ -122,3 +122,38 @@
   font-size: 12px;
   color: var(--green);
 }
+
+.settings-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.settings-link:hover {
+  text-decoration: underline;
+}
+
+.settings-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-skeleton-line {
+  height: 38px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-deep);
+  animation: settings-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.settings-skeleton-line-long {
+  width: 100%;
+}
+
+.settings-skeleton-line-short {
+  width: 40%;
+}
+
+@keyframes settings-skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
