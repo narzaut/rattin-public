@@ -127,12 +127,14 @@ int main(int argc, char *argv[])
         }
     });
 
-    // Wait for server, then launch QML UI
+    // Wait for server, then launch QML UI.
+    // IMPORTANT: waitForServer uses QTimer which needs the event loop.
+    // We call it before app.exec() — the timer starts but only fires
+    // once the event loop is running.
     waitForServer(port, &app, [&app, port]() {
+        fprintf(stderr, "[shell] server ready, loading QML\n");
         auto *engine = new QQmlApplicationEngine(&app);
         engine->rootContext()->setContextProperty("serverPort", port);
-
-        // Create mpv bridge (needs the MpvObject from QML — connected in main.qml)
         engine->rootContext()->setContextProperty("initialUrl",
             QString("http://localhost:%1").arg(port));
 
@@ -146,8 +148,11 @@ int main(int argc, char *argv[])
 
             auto *bridge = new MpvBridge(mpvObj, obj);
             engine->rootContext()->setContextProperty("mpvBridgeObj", bridge);
+            fprintf(stderr, "[shell] bridge registered\n");
         });
     });
 
+    // app.exec() starts the event loop — this is when waitForServer's
+    // QTimer actually begins firing.
     return app.exec();
 }
