@@ -584,6 +584,27 @@
   color: #ef4444;
 }
 
+.picker-tag.multi-audio {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93bbfd;
+}
+
+.picker-tag.has-subs {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c4b5fd;
+}
+
+.picker-tag.foreign {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.picker-tag.languages {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
 .picker-item-meta {
   display: flex;
   align-items: center;
