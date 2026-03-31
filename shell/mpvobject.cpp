@@ -5,6 +5,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickWindow>
+#include <QQuickOpenGLUtils>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -142,6 +143,9 @@ public:
     {
         if (!m_obj->m_mpvGL) return;
 
+        m_obj->window()->beginExternalCommands();
+        QQuickOpenGLUtils::resetOpenGLState();
+
         auto *fbo = framebufferObject();
         mpv_opengl_fbo mpvFbo{
             static_cast<int>(fbo->handle()),
@@ -156,6 +160,9 @@ public:
             {MPV_RENDER_PARAM_INVALID, nullptr}
         };
         mpv_render_context_render(m_obj->m_mpvGL, params);
+
+        QQuickOpenGLUtils::resetOpenGLState();
+        m_obj->window()->endExternalCommands();
     }
 
 private:

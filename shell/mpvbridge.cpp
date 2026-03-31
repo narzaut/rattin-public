@@ -83,6 +83,17 @@ QVariant MpvBridge::getProperty(const QString &name) const
     return m_mpv->getProperty(name);
 }
 
+void MpvBridge::setProperty(const QString &name, const QVariant &value)
+{
+    if (!m_mpv) return;
+    // mpv's sid/aid expect int64 — JS sends doubles, so force conversion
+    if (name == "sid" || name == "aid") {
+        m_mpv->setProperty(name, QVariant(value.toLongLong()));
+    } else {
+        m_mpv->setProperty(name, value);
+    }
+}
+
 void MpvBridge::onMpvEvent(const QString &eventName, const QVariant &value)
 {
     if (eventName == "time-pos" && value.canConvert<double>()) {

@@ -9,7 +9,7 @@ import { useIntro } from "../lib/useIntro";
 import { formatTime, formatBytes } from "../lib/utils";
 import { playTorrent, fetchLivePeers } from "../lib/api";
 import { encode } from "uqr";
-import { isNative, waitForBridge, mpvPlay, mpvPause, mpvResume, mpvTogglePause, mpvSeek, mpvSetVolume, mpvSetAudioTrack, mpvSetSubtitleTrack, mpvStop, onMpvTimeChanged, onMpvDurationChanged, onMpvEofReached, onMpvPauseChanged } from "../lib/native-bridge";
+import { isNative, waitForBridge, mpvPlay, mpvPause, mpvResume, mpvTogglePause, mpvSeek, mpvSetVolume, mpvSetAudioTrack, mpvSetSubtitleTrack, mpvStop, mpvSetTitle, onMpvTimeChanged, onMpvDurationChanged, onMpvEofReached, onMpvPauseChanged } from "../lib/native-bridge";
 import "./Player.css";
 
 export default function Player() {
@@ -170,6 +170,7 @@ export default function Player() {
       const streamUrl = `http://127.0.0.1:${port}/api/stream/${infoHash}/${fileIndex}?native=1`;
       console.log("[native-bridge] mpvPlay:", streamUrl);
       try {
+        mpvSetTitle(mediaTitle || "");
         mpvPlay(streamUrl);
         console.log("[native-bridge] mpvPlay sent");
       } catch (e) {

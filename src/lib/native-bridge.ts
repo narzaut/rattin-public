@@ -18,6 +18,7 @@ interface MpvBridge {
   setAudioTrack(index: number): void;
   setSubtitleTrack(index: number): void;
   stop(): void;
+  setTitle(title: string): void;
   getProperty(name: string): Promise<unknown>;
 }
 
@@ -111,6 +112,7 @@ export function waitForBridge(): Promise<void> {
       }, 50);
     }
   });
+  return _connectingPromise;
 }
 
 // ── State (tracked via QWebChannel signals) ────────────────────────
@@ -154,6 +156,10 @@ export function mpvSetSubtitleTrack(index: number): void {
 
 export function mpvStop(): void {
   window.mpvBridge?.stop();
+}
+
+export function mpvSetTitle(title: string): void {
+  (window.mpvBridge as any)?.setTitle?.(title);
 }
 
 // ── Events (receive from mpv) ───────────────────────────────────────

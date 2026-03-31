@@ -50,8 +50,14 @@ static void waitForServer(int port, QObject *parent, std::function<void()> onRea
     timer->start();
 }
 
+static void messageHandler(QtMsgType, const QMessageLogContext &, const QString &msg)
+{
+    fprintf(stderr, "qml: %s\n", msg.toUtf8().constData());
+}
+
 int main(int argc, char *argv[])
 {
+    qInstallMessageHandler(messageHandler);
     std::setlocale(LC_NUMERIC, "C");
     fprintf(stderr, "[shell] starting\n");
 
