@@ -91,9 +91,12 @@ export default function SourcePicker({ streams, onPick, onClose }: SourcePickerP
       }
 
       // Language: OR — match any selected flag
+      // Torrents with no language info are treated as English
       if (langFilter.size > 0) {
         const streamLangs = (s.languages || []).map((f: string) => FLAG_LABELS[f] || f);
-        if (!streamLangs.some((l: string) => langFilter.has(l))) return false;
+        const noLang = streamLangs.length === 0;
+        const matchesEN = noLang && langFilter.has("EN");
+        if (!matchesEN && !streamLangs.some((l: string) => langFilter.has(l))) return false;
       }
 
       // Features: AND — must have ALL selected features
