@@ -491,6 +491,12 @@ export default function Player() {
                         {s.tags?.map((t: string) => (
                           <span key={t} className={`player-source-tag${t === "Native" ? " native" : ""}`}>{t === "Native" ? "Full Seek" : t}</span>
                         ))}
+                        {s.multiAudio && <span className="player-source-tag multi-audio">Multi Audio</span>}
+                        {s.hasSubs && <span className="player-source-tag has-subs">Subs</span>}
+                        {s.foreignOnly && <span className="player-source-tag foreign">Foreign</span>}
+                        {s.languages?.length > 0 && (
+                          <span className="player-source-tag languages">{s.languages.join(" ")}</span>
+                        )}
                       </div>
                     </div>
                     <div className="player-source-item-meta">

@@ -590,6 +590,12 @@ export default function Detail() {
                         {s.tags.map((t: string) => (
                           <span key={t} className={`picker-tag${t === "Native" ? " native" : ""}`}>{t === "Native" ? "Full Seek" : t}</span>
                         ))}
+                        {s.multiAudio && <span className="picker-tag multi-audio">Multi Audio</span>}
+                        {s.hasSubs && <span className="picker-tag has-subs">Subs</span>}
+                        {s.foreignOnly && <span className="picker-tag foreign">Foreign</span>}
+                        {s.languages?.length > 0 && (
+                          <span className="picker-tag languages">{s.languages.join(" ")}</span>
+                        )}
                       </div>
                     </div>
                     <div className="picker-item-meta">

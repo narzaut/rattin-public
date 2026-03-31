@@ -623,6 +623,27 @@
   color: #ef4444;
 }
 
+.player-source-tag.multi-audio {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93bbfd;
+}
+
+.player-source-tag.has-subs {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c4b5fd;
+}
+
+.player-source-tag.foreign {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.player-source-tag.languages {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
 .player-source-item-meta {
   display: flex;
   align-items: center;
