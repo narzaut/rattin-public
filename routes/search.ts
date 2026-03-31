@@ -256,8 +256,10 @@ async function searchTV(title: string, season: number, episode: number, imdbId?:
 
     const existing = seen.get(r.infoHash);
     if (!existing || r.seeders > existing.seeders) {
-      const hasEp = new RegExp(`S${s}E${e}(?!\\d)`, "i").test(r.name)
-        || new RegExp(`S${season}E${episode}(?!\\d)`, "i").test(r.name);
+      const sPad = String(Math.abs(season)).padStart(2, "0");
+      const ePad = String(Math.abs(episode)).padStart(2, "0");
+      const hasEp = new RegExp(`S${sPad}E${ePad}(?!\\d)`, "i").test(r.name)
+        || new RegExp(`S${Math.abs(season)}E${Math.abs(episode)}(?!\\d)`, "i").test(r.name);
       const hasSsn = new RegExp(`S${s}(?!\\d)`, "i").test(r.name)
         || /complete|full.season|season.\d|all.seasons/i.test(r.name)
         || coversTargetSeason(r.name, season);

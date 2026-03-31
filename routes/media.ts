@@ -88,7 +88,6 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
         ];
         const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
         res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-        res.setHeader("Access-Control-Allow-Origin", "*");
         ffmpeg.stdout!.pipe(res);
         ffmpeg.stderr!.on("data", (d: Buffer) => log("warn", "Subtitle ffmpeg: " + d.toString().trim()));
         ffmpeg.on("close", (code: number | null) => {
@@ -100,13 +99,11 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
 
       if (ext === ".vtt") {
         res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-        res.setHeader("Access-Control-Allow-Origin", "*");
         return createReadStream(filePath).pipe(res);
       }
 
       if (ext === ".srt") {
         res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-        res.setHeader("Access-Control-Allow-Origin", "*");
         try {
           const srtContent = fs.readFileSync(filePath, "utf-8");
           return res.send(srtToVtt(srtContent));
@@ -127,7 +124,6 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
     stream.on("end", () => {
       const raw = Buffer.concat(chunks).toString("utf-8");
       res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-      res.setHeader("Access-Control-Allow-Origin", "*");
       if (ext === ".vtt") return res.send(raw);
       if (ext === ".srt") return res.send(srtToVtt(raw));
       // Other formats: pipe through ffmpeg from buffer
@@ -370,6 +366,9 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
 
     const filePath = diskPath(torrent, file);
     const streamIdx = parseInt(params.streamIndex, 10);
+    if (isNaN(streamIdx) || streamIdx < 0 || streamIdx > 100) {
+      return res.status(400).json({ error: "Invalid stream index" });
+    }
 
     // Check file exists on disk
     try { statSync(filePath); } catch {
@@ -390,7 +389,6 @@ export default function mediaRoutes(app: Express, ctx: ServerContext): void {
     const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
 
     res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
     ffmpeg.stdout!.pipe(res);
     ffmpeg.stderr!.on("data", (d: Buffer) => log("warn", "Sub extract: " + d.toString().trim()));
     ffmpeg.on("close", (code: number | null) => {

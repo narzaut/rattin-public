@@ -30,7 +30,7 @@ export default function rcRoutes(app: Express, ctx: ServerContext): void {
 
   // Create session
   app.post("/api/rc/session", (req: Request, res: Response) => {
-    const sessionId = crypto.randomBytes(4).toString("hex");
+    const sessionId = crypto.randomBytes(16).toString("hex");
     const authToken = crypto.randomBytes(16).toString("hex");
     rcSessions.set(sessionId, {
       playerClient: null,

@@ -103,7 +103,8 @@ fi
 log "Downloading Rattin AppImage..."
 
 mkdir -p "$APP_DIR"
-local tmpfile="$APP_DIR/${APPIMAGE_NAME}.tmp"
+local tmpfile
+tmpfile="$(mktemp "$APP_DIR/${APPIMAGE_NAME}.XXXXXX.tmp")"
 
 if command -v curl >/dev/null 2>&1; then
     curl -fSL "$APPIMAGE_URL" -o "$tmpfile"
@@ -208,12 +209,14 @@ EOF
 
 # Extract the icon from the AppImage
 # AppImages support --appimage-extract to get contents without FUSE
-cd /tmp
+local extract_dir
+extract_dir="$(mktemp -d)"
+cd "$extract_dir"
 "$APP_DIR/$APPIMAGE_NAME" --appimage-extract rattin.svg >/dev/null 2>&1 || true
 if [ -f "squashfs-root/rattin.svg" ]; then
     cp "squashfs-root/rattin.svg" "$ICON_DIR/rattin.svg"
 fi
-rm -rf squashfs-root
+rm -rf "$extract_dir"
 
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
