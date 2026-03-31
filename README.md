@@ -92,26 +92,17 @@ Both modes share the same interface and backend. The native version just swaps t
 
 ### :desktop_computer: Desktop App (Linux)
 
-**Option A: One-line installer** (builds from source, installs dependencies automatically)
+One command:
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/rattin-player/rattin-public/main/install-native.sh" | bash
 ```
 
-Installs Qt6, libmpv, Node.js, ffmpeg, and builds the native shell. Creates a desktop entry so it shows up in your app launcher. You'll be asked for a free [TMDB API key](https://www.themoviedb.org/settings/api) during setup.
+Downloads the AppImage, creates a desktop entry, opens the firewall port for phone remote, and prompts for a free [TMDB API key](https://www.themoviedb.org/settings/api). Shows up in your app launcher as "Rattin".
 
 To update, rerun the same command. To uninstall: add `--uninstall`.
 
-**Option B: AppImage** (single file, no install required)
-
-Download `Rattin-x86_64.AppImage` from the [latest release](https://github.com/rattin-player/rattin-public/releases/latest), make it executable, and run:
-
-```bash
-chmod +x Rattin-x86_64.AppImage
-./Rattin-x86_64.AppImage
-```
-
-The AppImage bundles Node.js, the server, and the Qt shell. System dependencies required: libmpv, Qt6 WebEngine, ffmpeg, and fpcalc (chromaprint). On first run, set your TMDB API key in `~/.config/rattin/.env`.
+You can also grab the AppImage directly from the [latest release](https://github.com/rattin-player/rattin-public/releases/latest) and run it manually.
 
 ### :globe_with_meridians: Web Mode (self-hosted server)
 
