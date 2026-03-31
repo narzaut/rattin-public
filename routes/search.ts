@@ -304,7 +304,17 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
   }
 
   try {
-    const scored = results
+    // Deduplicate by infoHash (keep the one with more seeders)
+    const deduped = new Map<string, SearchResult>();
+    for (const r of results) {
+      const key = r.infoHash;
+      const existing = deduped.get(key);
+      if (!existing || r.seeders > existing.seeders) {
+        deduped.set(key, r);
+      }
+    }
+
+    const scored = [...deduped.values()]
       .map((r) => {
         const tags = parseTags(r.name);
         // Torrentio already tells us if the file is browser-native
