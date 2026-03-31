@@ -59,15 +59,6 @@ export default function Detail() {
       const imdbId = data.imdb_id || data.external_ids?.imdb_id || undefined;
       const results = await searchStreams(title, year, type, season, episode, imdbId);
       setStreams(results);
-      // Resolve actual file formats in background
-      // Sort native sources to the top
-      if (results.length > 0) {
-        const sorted = [
-          ...results.filter((s: { tags: string[] }) => s.tags.includes("Native")),
-          ...results.filter((s: { tags: string[] }) => !s.tags.includes("Native")),
-        ];
-        setStreams(sorted);
-      }
     } catch {
       setStreams([]);
     }

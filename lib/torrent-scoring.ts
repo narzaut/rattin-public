@@ -34,12 +34,6 @@ export function scoreTorrent(result: TorrentResult, title: string, year: number 
 
   if (/\bcam\b|hdcam|telecine|\bts\b|hdts|telesync/i.test(name)) score -= 50;
 
-  // Prefer MP4 (browser-native, no transcode needed)
-  if (/\.mp4\b/i.test(name)) score += 15;
-  if (/\bx264\b.*\.mp4|\.mp4\b.*\bx264\b/i.test(name)) score += 5;
-  // Penalize MKV slightly (needs transcode)
-  if (/\.mkv\b/i.test(name)) score -= 5;
-
   if (result.seeders === 0) return -1;
   score += Math.min(30, Math.log2(result.seeders + 1) * 3);
 
