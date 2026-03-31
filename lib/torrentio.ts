@@ -43,12 +43,59 @@ export interface TorrentioMeta {
 const FLAG_RE = /[\u{1F1E6}-\u{1F1FF}]{2}/gu;
 const ENGLISH_FLAGS = new Set(["🇬🇧", "🇺🇸", "🇦🇺", "🇨🇦"]);
 
+// Map 3-letter and common 2-letter language codes to flag emojis
+const LANG_CODE_TO_FLAG: Record<string, string> = {
+  ENG: "🇬🇧", EN: "🇬🇧",
+  ITA: "🇮🇹", IT: "🇮🇹",
+  FRA: "🇫🇷", FR: "🇫🇷",
+  SPA: "🇪🇸", ES: "🇪🇸",
+  GER: "🇩🇪", DE: "🇩🇪",
+  POR: "🇵🇹", PT: "🇵🇹",
+  RUS: "🇷🇺", RU: "🇷🇺",
+  JPN: "🇯🇵", JP: "🇯🇵", JA: "🇯🇵",
+  KOR: "🇰🇷", KO: "🇰🇷",
+  CHI: "🇨🇳", ZH: "🇨🇳",
+  ARA: "🇸🇦", AR: "🇸🇦",
+  HIN: "🇮🇳", HI: "🇮🇳",
+  DUT: "🇳🇱", NL: "🇳🇱",
+  POL: "🇵🇱", PL: "🇵🇱",
+  TUR: "🇹🇷", TR: "🇹🇷",
+  SWE: "🇸🇪", SV: "🇸🇪",
+  NOR: "🇳🇴", NO: "🇳🇴",
+  DAN: "🇩🇰", DA: "🇩🇰",
+  FIN: "🇫🇮", FI: "🇫🇮",
+  GRE: "🇬🇷", EL: "🇬🇷",
+  HEB: "🇮🇱", HE: "🇮🇱",
+  CZE: "🇨🇿", CS: "🇨🇿",
+  ROM: "🇷🇴", RO: "🇷🇴",
+  HUN: "🇭🇺", HU: "🇭🇺",
+};
+const LANG_CODE_RE = new RegExp(`\\b(${Object.keys(LANG_CODE_TO_FLAG).join("|")})\\b`, "gi");
+
 export function parseTorrentioMeta(title: string): TorrentioMeta {
   const full = title;
+
+  // Extract flag emojis
   const flags = [...new Set(full.match(FLAG_RE) || [])];
-  const hasSubs = /multi\s*sub|multisub|\bsub\s+[a-z]{2,}/i.test(full);
-  const multiAudio = /multi\s*audio|dual\s*audio|\bDUAL\b/i.test(full);
+
+  // Extract text language codes and convert to flags
+  const codeMatches = [...full.matchAll(LANG_CODE_RE)];
+  for (const m of codeMatches) {
+    const flag = LANG_CODE_TO_FLAG[m[1].toUpperCase()];
+    if (flag && !flags.includes(flag)) flags.push(flag);
+  }
+
+  // Subtitle detection — expanded patterns
+  const hasSubs = /multi\s*sub|multisub|\bsub[s]?\b/i.test(full)
+    || /\bsrt\b/i.test(full)
+    || /\bsubtitle/i.test(full);
+
+  // Multi-audio detection
+  const multiAudio = /multi\s*audio|dual\s*audio|\bDUAL\b|multi\s*\d+\s*lang/i.test(full);
+
+  // Foreign-only: has flags but none are English-speaking
   const foreignOnly = flags.length > 0 && !flags.some((f) => ENGLISH_FLAGS.has(f));
+
   return { languages: flags, hasSubs, multiAudio, foreignOnly };
 }
 
