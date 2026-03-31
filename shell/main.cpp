@@ -160,34 +160,36 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Create bridge and register it on a QWebChannel from C++.
-        // QML's registeredObjects requires WebChannel.id attached property
-        // which can't be set on C++ context properties. So we create the
-        // channel here and pass it to QML.
         auto *bridge = new MpvBridge(&app);
-        auto *webChannel = new QWebChannel(&app);
-        webChannel->registerObject("bridge", bridge);
-        fprintf(stderr, "[shell] bridge registered on QWebChannel\n");
 
         auto *engine = new QQmlApplicationEngine(&app);
         engine->rootContext()->setContextProperty("serverPort", port);
         engine->rootContext()->setContextProperty("initialUrl",
             QString("http://localhost:%1?native=1").arg(port));
         engine->rootContext()->setContextProperty("bridge", bridge);
-        engine->rootContext()->setContextProperty("cppWebChannel", webChannel);
 
         engine->load(QUrl("qrc:/main.qml"));
 
-        // After QML loads, find the MpvObject and attach it to the bridge
+        // After QML loads, find the WebChannel and MpvObject
         QObject::connect(engine, &QQmlApplicationEngine::objectCreated, [bridge](QObject *obj) {
             if (!obj) return;
-            auto *mpvObj = obj->findChild<MpvObject *>();
-            if (!mpvObj) {
-                fprintf(stderr, "[shell] WARNING: MpvObject not found in QML\n");
-                return;
+
+            // Register bridge on the QML WebChannel (QQmlWebChannel inherits QWebChannel)
+            auto *channel = obj->findChild<QWebChannel *>();
+            if (channel) {
+                channel->registerObject("bridge", bridge);
+                fprintf(stderr, "[shell] bridge registered on WebChannel\n");
+            } else {
+                fprintf(stderr, "[shell] WARNING: WebChannel not found in QML\n");
             }
-            bridge->attachMpv(mpvObj);
-            fprintf(stderr, "[shell] bridge attached to mpv\n");
+
+            auto *mpvObj = obj->findChild<MpvObject *>();
+            if (mpvObj) {
+                bridge->attachMpv(mpvObj);
+                fprintf(stderr, "[shell] bridge attached to mpv\n");
+            } else {
+                fprintf(stderr, "[shell] WARNING: MpvObject not found in QML\n");
+            }
         });
     });
 
