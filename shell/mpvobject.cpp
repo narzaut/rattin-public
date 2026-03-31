@@ -1,10 +1,106 @@
 #include "mpvobject.h"
 
 #include <clocale>
+#include <cstring>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickWindow>
-#include <mpv/qthelper.hpp>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <mpv/client.h>
+
+// mpv/qthelper.hpp was removed in mpv 2.x. These helpers replace the
+// mpv::qt:: functions we need: command, set_property, get_property,
+// and node_to_variant.
+
+namespace mpv_qt {
+
+static QVariant node_to_variant(const mpv_node *node)
+{
+    if (!node) return QVariant();
+    switch (node->format) {
+    case MPV_FORMAT_STRING:
+        return QString::fromUtf8(node->u.string);
+    case MPV_FORMAT_FLAG:
+        return static_cast<bool>(node->u.flag);
+    case MPV_FORMAT_INT64:
+        return static_cast<qlonglong>(node->u.int64);
+    case MPV_FORMAT_DOUBLE:
+        return node->u.double_;
+    case MPV_FORMAT_NODE_ARRAY: {
+        QVariantList list;
+        auto *a = node->u.list;
+        for (int i = 0; i < a->num; i++)
+            list.append(node_to_variant(&a->values[i]));
+        return list;
+    }
+    case MPV_FORMAT_NODE_MAP: {
+        QVariantMap map;
+        auto *m = node->u.list;
+        for (int i = 0; i < m->num; i++)
+            map.insert(QString::fromUtf8(m->keys[i]), node_to_variant(&m->values[i]));
+        return map;
+    }
+    default:
+        return QVariant();
+    }
+}
+
+// Build an mpv_node from a QVariant for command() calls.
+// Only handles the types we actually use: string lists.
+static int command_variant(mpv_handle *mpv, const QVariant &params)
+{
+    if (!params.canConvert<QVariantList>()) return -1;
+    QVariantList list = params.toList();
+
+    // Build a simple string command array
+    QList<QByteArray> utf8Args;
+    QList<const char *> args;
+    for (const auto &v : list) {
+        utf8Args.append(v.toString().toUtf8());
+        args.append(utf8Args.last().constData());
+    }
+    args.append(nullptr);
+    return mpv_command(mpv, args.data());
+}
+
+static int set_property_variant(mpv_handle *mpv, const QString &name, const QVariant &value)
+{
+    QByteArray key = name.toUtf8();
+    switch (value.typeId()) {
+    case QMetaType::Bool: {
+        int flag = value.toBool() ? 1 : 0;
+        return mpv_set_property(mpv, key.constData(), MPV_FORMAT_FLAG, &flag);
+    }
+    case QMetaType::Int:
+    case QMetaType::LongLong: {
+        int64_t v = value.toLongLong();
+        return mpv_set_property(mpv, key.constData(), MPV_FORMAT_INT64, &v);
+    }
+    case QMetaType::Double:
+    case QMetaType::Float: {
+        double v = value.toDouble();
+        return mpv_set_property(mpv, key.constData(), MPV_FORMAT_DOUBLE, &v);
+    }
+    default: {
+        QByteArray val = value.toString().toUtf8();
+        return mpv_set_property_string(mpv, key.constData(), val.constData());
+    }
+    }
+}
+
+static QVariant get_property_variant(mpv_handle *mpv, const QString &name)
+{
+    mpv_node node;
+    int err = mpv_get_property(mpv, name.toUtf8().constData(), MPV_FORMAT_NODE, &node);
+    if (err < 0) return QVariant();
+    QVariant result = node_to_variant(&node);
+    mpv_free_node_contents(&node);
+    return result;
+}
+
+} // namespace mpv_qt
 
 #ifdef Q_OS_WIN
 #include <dwmapi.h>
@@ -114,17 +210,18 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
 
 QVariant MpvObject::command(const QVariant &params)
 {
-    return mpv::qt::command(m_mpv, params);
+    mpv_qt::command_variant(m_mpv, params);
+    return QVariant();
 }
 
 void MpvObject::setProperty(const QString &name, const QVariant &value)
 {
-    mpv::qt::set_property(m_mpv, name, value);
+    mpv_qt::set_property_variant(m_mpv, name, value);
 }
 
 QVariant MpvObject::getProperty(const QString &name) const
 {
-    return mpv::qt::get_property(m_mpv, name);
+    return mpv_qt::get_property_variant(m_mpv, name);
 }
 
 void MpvObject::observeProperty(const QString &name)
@@ -163,7 +260,7 @@ void MpvObject::handleMpvEvent(mpv_event *event)
         auto *prop = static_cast<mpv_event_property *>(event->data);
         QVariant value;
         if (prop->format == MPV_FORMAT_NODE) {
-            value = mpv::qt::node_to_variant(static_cast<mpv_node *>(prop->data));
+            value = mpv_qt::node_to_variant(static_cast<mpv_node *>(prop->data));
         } else if (prop->format == MPV_FORMAT_DOUBLE) {
             value = *static_cast<double *>(prop->data);
         } else if (prop->format == MPV_FORMAT_FLAG) {
