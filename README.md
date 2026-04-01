@@ -247,4 +247,4 @@ npm start       # Backend (port 3000, proxied by Vite)
 
 ---
 
-<p align="center">ISC License</p>
+<p align="center">GPL-3.0 License</p>
