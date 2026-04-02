@@ -276,15 +276,31 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
           if (value) {
             const wasOnPlayer = window.location.pathname.startsWith("/play/");
             console.log("[rc] start-stream", { infoHash: value.infoHash, title: value.title, wasOnPlayer, debridUrl: !!value.debridUrl });
-            startStreamRef.current?.(value.infoHash, value.fileIndex, value.title, value.tags, value.debridUrl);
-            if (navigateRef.current) {
-              navigateRef.current(`/play/${value.infoHash}/${value.fileIndex}`, {
-                replace: wasOnPlayer,
-                state: {
-                  tags: value.tags, title: value.title, debridUrl: value.debridUrl,
-                  year: value.year, type: value.type, season: value.season, episode: value.episode, imdbId: value.imdbId,
-                },
-              });
+
+            if (wasOnPlayer && navigateRef.current) {
+              // Kill old player first — same as pressing Stop
+              stopStreamRef.current?.();
+              navigateRef.current("/", { replace: true });
+              // Give mpv time to fully tear down, then spawn new player
+              setTimeout(() => {
+                startStreamRef.current?.(value.infoHash, value.fileIndex, value.title, value.tags, value.debridUrl);
+                navigateRef.current?.(`/play/${value.infoHash}/${value.fileIndex}`, {
+                  state: {
+                    tags: value.tags, title: value.title, debridUrl: value.debridUrl,
+                    year: value.year, type: value.type, season: value.season, episode: value.episode, imdbId: value.imdbId,
+                  },
+                });
+              }, 150);
+            } else {
+              startStreamRef.current?.(value.infoHash, value.fileIndex, value.title, value.tags, value.debridUrl);
+              if (navigateRef.current) {
+                navigateRef.current(`/play/${value.infoHash}/${value.fileIndex}`, {
+                  state: {
+                    tags: value.tags, title: value.title, debridUrl: value.debridUrl,
+                    year: value.year, type: value.type, season: value.season, episode: value.episode, imdbId: value.imdbId,
+                  },
+                });
+              }
             }
           }
           break;
