@@ -38,9 +38,12 @@ export default function Player() {
   const [livePeers, setLivePeers] = useState<Record<string, { numPeers: number; downloadSpeed: number }>>({});
   const livePeerTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
-  // Fetch sources if not passed via nav state (auto-play flow)
+  // Fetch sources for current content (enables source picker on desktop + remote)
   useEffect(() => {
-    if (sources.length > 0 || !state?.title) return;
+    if (!state?.title) return;
+    // Clear stale sources from previous video, then fetch fresh ones
+    setSources(state?.sources || []);
+    if (state?.sources?.length > 0) return;
     searchStreams(state.title, state.year, state.type, state.season, state.episode, state.imdbId)
       .then((results) => { if (results.length > 0) setSources(results); })
       .catch(() => {});
