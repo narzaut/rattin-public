@@ -20,9 +20,8 @@ export default function Player() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = location.state as any;
   const [currentTags, setCurrentTags] = useState<string[]>(state?.tags || []);
-  const [currentTitle, setCurrentTitle] = useState<string>(state?.title || "");
   const tags: string[] = currentTags.length > 0 ? currentTags : (active?.tags || []);
-  const mediaTitle: string = currentTitle || active?.title || "";
+  const mediaTitle: string = state?.title || active?.title || "";
   const preSelectedAudio: number | null = state?.audioTrack ?? null;
   const preSelectedSub: string | null = state?.subtitle ?? null;
   const pageRef = useRef<HTMLDivElement>(null);
