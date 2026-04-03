@@ -19,11 +19,14 @@ interface CreateContextOverrides {
 }
 
 export function createContext(overrides: CreateContextOverrides = {}): ServerContext {
+  let clientReady = !overrides.deferClient;
   let client: TorrentClient = overrides.client || (overrides.deferClient
-    ? { torrents: [] } as unknown as TorrentClient
+    ? { torrents: [], destroy(cb?: (err?: Error) => void) { cb?.(); } } as unknown as TorrentClient
     : new WebTorrent() as unknown as TorrentClient);
 
   function initClient(): TorrentClient {
+    if (clientReady) return client;
+    clientReady = true;
     if (!overrides.client) {
       client = new WebTorrent() as unknown as TorrentClient;
     }
