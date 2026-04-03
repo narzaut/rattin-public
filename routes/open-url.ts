@@ -12,13 +12,15 @@ export default function openUrlRoutes(app: Express, _ctx: ServerContext): void {
     }
 
     // Use the platform's default browser
+    // Windows: "start" needs empty title ("") and windowsHide to suppress cmd flash
+    const quoted = JSON.stringify(url);
     const cmd = process.platform === "darwin"
-      ? "open"
+      ? `open ${quoted}`
       : process.platform === "win32"
-        ? "start"
-        : "xdg-open";
+        ? `start "" ${quoted}`
+        : `xdg-open ${quoted}`;
 
-    exec(`${cmd} ${JSON.stringify(url)}`, (err) => {
+    exec(cmd, { windowsHide: true }, (err) => {
       if (err) console.error("[open-url] Failed to open:", err.message);
     });
 
