@@ -3,7 +3,7 @@ import fs from "fs";
 import { createReadStream, statSync } from "fs";
 import { spawn } from "child_process";
 import type { Express, Request, Response } from "express";
-import { jobKey } from "../lib/torrent-caches.js";
+import { jobKey } from "../lib/cache/torrent-caches.js";
 import { getFileOffset } from "../lib/torrent-compat.js";
 import { hasPiece } from "../lib/torrent-compat.js";
 import { VIDEO_EXTENSIONS, SUBTITLE_EXTENSIONS, srtToVtt } from "../lib/media-utils.js";

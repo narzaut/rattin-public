@@ -3,8 +3,8 @@ import { statSync } from "fs";
 // @ts-expect-error — no @types/webtorrent available
 import WebTorrent from "webtorrent";
 import crypto from "crypto";
-import { BoundedMap } from "./bounded-map.js";
-import { registerCache, cleanupHash } from "./torrent-caches.js";
+import { BoundedMap } from "./cache/bounded-map.js";
+import { registerCache, cleanupHash } from "./cache/torrent-caches.js";
 import { downloadDir, transcodeDir, dataDir } from "./storage/paths.js";
 import { JsonStore } from "./storage/store.js";
 import { WatchHistory } from "./storage/watch-history.js";
