@@ -27,7 +27,7 @@ Rattin is a single desktop app that does all of it — browse TMDB, click play, 
 🔍 TMDB discovery — trending, genres, search, trailers, cast, one-click play<br>
 📱 Phone remote via QR scan — no app install, just point your camera<br>
 🔒 No account, no database, no cloud, no telemetry — nothing leaves your machine<br>
-⚡ Optional Real-Debrid — instant streaming via HTTPS, full seeking, no swarm exposure<br>
+⚡ Optional debrid (Real-Debrid / TorBox) — instant streaming via HTTPS, full seeking, no swarm exposure<br>
 🛡️ Optional per-app VPN *(WIP)* — WireGuard isolation for torrent traffic only, built-in kill switch
 
 ### :mag: Discovery
@@ -35,6 +35,8 @@ Rattin is a single desktop app that does all of it — browse TMDB, click play, 
 - **Full movie & TV browser** - Trending, new releases, top rated, genres, cast, trailers
 - **Smart torrent search** - Searches multiple providers and ranks by quality, seeders, and format
 - **One-click play** - Auto-selects the best available torrent and starts streaming
+- **Watch history** - Tracks where you left off across movies and TV episodes, resumes automatically
+- **Saved list** - Save movies and shows for later from any detail page
 - **Quality at a glance** - Resolution, codec, audio format, and source parsed from every result
 
 ### :zap: Player
@@ -57,7 +59,7 @@ Rattin is a single desktop app that does all of it — browse TMDB, click play, 
 
 ### :shield: Privacy
 
-- **Real-Debrid integration** - Torrents download on RD's servers, you stream over HTTPS. Your IP never joins the swarm. Configure in Settings (gear icon).
+- **Debrid integration** - Torrents download on debrid servers (Real-Debrid or TorBox), you stream over HTTPS. Your IP never joins the swarm. Configure via the Debrid button in the navbar.
 - **Per-app VPN isolation** *(WIP)* - WireGuard tunnel in a Linux network namespace. Only Rattin's traffic goes through the VPN — everything else on your system stays on your normal connection. Built-in kill switch: if the tunnel drops, torrent connections die instead of leaking your real IP.
 - **No built-in tracking** - No signup, no analytics, no telemetry, no phone-home. The only external calls are TMDB (metadata) and torrent search providers.
 
@@ -99,9 +101,11 @@ On first launch, go to Settings (gear icon) and enter a free [TMDB API key](http
 
 ### Debrid Setup
 
-1. Get a [Real-Debrid](https://real-debrid.com) account (~$3/month)
-2. Copy your API token from [real-debrid.com/apitoken](https://real-debrid.com/apitoken)
-3. Open Rattin, click the **Debrid** button in the navbar, paste your key, click **Connect**
+Rattin supports [Real-Debrid](https://real-debrid.com) and [TorBox](https://torbox.app) as debrid providers.
+
+1. Get an account with your preferred provider
+2. Copy your API token (Real-Debrid: [apitoken page](https://real-debrid.com/apitoken), TorBox: Settings → API)
+3. Open Rattin, click the **Debrid** button in the navbar, select your provider, paste your key, click **Connect**
 4. Choose your streaming mode:
 
 | Mode | Behavior |
@@ -196,7 +200,7 @@ Non-local API access is now scoped to an authenticated paired remote session. Br
 | Frontend | React 19, React Router 7, Vite 6 |
 | Backend | Express 5, Node.js 20+ |
 | Torrents | WebTorrent |
-| Debrid | Real-Debrid REST API |
+| Debrid | Real-Debrid, TorBox |
 | Native Shell | Qt6, libmpv, QWebChannel, CMake |
 | Intro Detection | Chromaprint (fpcalc) + AniSkip API |
 | Metadata | TMDB API |
