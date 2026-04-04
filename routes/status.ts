@@ -1,6 +1,6 @@
 import path from "path";
 import type { Express, Request, Response } from "express";
-import { jobKey } from "../lib/torrent-caches.js";
+import { jobKey } from "../lib/cache/torrent-caches.js";
 import {
   VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, SUBTITLE_EXTENSIONS,
   isAllowedFile,
