@@ -39,6 +39,7 @@ type NavigateFn = (...args: any[]) => void;
 interface PlayerContextValue {
   active: ActiveStream | null;
   playing: boolean;
+  playingRef: MutableRefObject<boolean>;
   currentTime: number;
   duration: number;
   volume: number;
@@ -67,6 +68,7 @@ interface PlayerContextValue {
   subSize: number;
   adjustSubSize: (delta: number) => void;
   setSubSizeAbsolute: (size: number) => void;
+  subDelayRef: MutableRefObject<number>;
   switching: boolean;
 }
 
@@ -129,6 +131,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
   const [subSize, setSubSize] = useState(55);
   const subSizeRef = useRef(55);
   subSizeRef.current = subSize;
+  const subDelayRef = useRef(0);
   const [switching, setSwitching] = useState(false);
   const switchingRef = useRef(false);
   switchingRef.current = switching;
@@ -192,6 +195,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
     audioTracksRef.current = [];
     activeAudioRef.current = null;
     introRangeRef.current = null;
+    subDelayRef.current = 0;
     setActive({ infoHash: ih, fileIndex: fi, title, tags, debridStreamKey });
   }, [active]);
 
@@ -274,6 +278,12 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
         case "sub-size":
           adjustSubSize(value);
           break;
+        case "sub-delay": {
+          const next = Math.round((subDelayRef.current + value) * 10) / 10;
+          subDelayRef.current = next;
+          window.mpvBridge?.setProperty("sub-delay", next);
+          break;
+        }
         case "skip-intro": {
           const range = introRangeRef.current;
           if (range && commandRef.current?.seek) commandRef.current.seek(range.end);
@@ -387,6 +397,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
         introActive: !!(introRangeRef.current && ct >= introRangeRef.current.start && ct < introRangeRef.current.end),
         introEnd: introRangeRef.current?.end ?? null,
         subSize: subSizeRef.current,
+        subDelay: subDelayRef.current,
         sources: sourcesRef.current,
         switching: switchingRef.current,
         connected: true,
@@ -422,13 +433,13 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
 
   return (
     <PlayerContext.Provider value={{
-      active, playing, currentTime, duration, volume,
+      active, playing, playingRef, currentTime, duration, volume,
       startStream, stopStream, togglePlay,
       effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, dlProgressRef, dlSpeedRef, dlPeersRef,
       commandRef, navigateRef,
       rcSessionId, setRcSessionId, rcAuthToken, setRcAuthToken, rcRemoteConnected, rcQrRequested,
       introRangeRef, sourcesRef,
-      subSize, adjustSubSize, setSubSizeAbsolute, switching,
+      subSize, adjustSubSize, setSubSizeAbsolute, subDelayRef, switching,
     }}>
       {children}
     </PlayerContext.Provider>

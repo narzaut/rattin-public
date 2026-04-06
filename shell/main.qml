@@ -135,6 +135,7 @@ Window {
         signal nativeVolumeChanged(int percent)  // QML→JS: native overlay changed volume
         signal volumeChanged(int percent)        // JS→QML: JS changed volume
         signal nativeSubSizeChanged(int size)    // QML→JS: native overlay changed sub size
+        signal nativeSubDelayChanged(real delay)  // QML→JS: native overlay changed sub delay
         signal backRequested()                    // QML→JS: user pressed back in native overlay
         signal toggleSourcePanel()               // QML→JS: open/close source panel
         signal sourcePanelChanged(bool open)     // JS→QML: source panel state changed
@@ -296,7 +297,11 @@ Window {
                 var sid = bridge.getProperty("sid")
                 if (sid !== undefined && sid !== false) root.activeSub = sid
                 var aid = bridge.getProperty("aid")
-                if (aid !== undefined && aid !== false) root.activeAudio = aid
+                if (aid !== undefined && aid !== false) {
+                    root.activeAudio = aid
+                    // Notify JS so React/phone remote state stays in sync
+                    transport.nativeAudioChanged(aid)
+                }
             }
         }
     }
@@ -712,7 +717,7 @@ Window {
                         text: "\u2212"; color: "#ccc"; font.pixelSize: 14
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.subDelay = Math.round((root.subDelay - 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay) }
+                            onClicked: { root.subDelay = Math.round((root.subDelay - 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay); transport.nativeSubDelayChanged(root.subDelay) }
                         }
                     }
                     Text {
@@ -724,7 +729,7 @@ Window {
                         text: "+"; color: "#ccc"; font.pixelSize: 14
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.subDelay = Math.round((root.subDelay + 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay) }
+                            onClicked: { root.subDelay = Math.round((root.subDelay + 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay); transport.nativeSubDelayChanged(root.subDelay) }
                         }
                     }
                 }
