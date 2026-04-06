@@ -157,12 +157,19 @@ Copy-Item (Join-Path $RepoRoot "packaging/windows/rattin.ico") $DistDir
 
 # Run windeployqt to gather Qt DLLs
 Log "Running windeployqt"
-$windeployqt = Get-Command windeployqt6 -ErrorAction SilentlyContinue
+# Prefer windeployqt from CMAKE_PREFIX_PATH so the right Qt is always used
+$windeployqt = $null
+if ($env:CMAKE_PREFIX_PATH) {
+    $candidate = Join-Path $env:CMAKE_PREFIX_PATH "bin/windeployqt6.exe"
+    if (Test-Path $candidate) { $windeployqt = $candidate }
+}
 if (-not $windeployqt) {
-    $windeployqt = Get-Command windeployqt -ErrorAction SilentlyContinue
+    $cmd = Get-Command windeployqt6 -ErrorAction SilentlyContinue
+    if (-not $cmd) { $cmd = Get-Command windeployqt -ErrorAction SilentlyContinue }
+    if ($cmd) { $windeployqt = $cmd.Source }
 }
 if ($windeployqt) {
-    & $windeployqt.Source (Join-Path $DistDir "rattin-shell.exe") `
+    & $windeployqt (Join-Path $DistDir "rattin-shell.exe") `
         --qmldir (Join-Path $RepoRoot "shell") `
         --release --no-translations
 } else {
