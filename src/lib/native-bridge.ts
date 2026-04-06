@@ -25,10 +25,12 @@ interface MpvBridge {
   play(url: string): void;
   pause(): void;
   resume(): void;
+  togglePause(): void;
   seek(seconds: number): void;
   setVolume(percent: number): void;
   setAudioTrack(index: number): void;
   setSubtitleTrack(index: number): void;
+  loadExternalSubtitle(url: string, title?: string): void;
   stop(): void;
   setTitle(title: string): void;
   setProperty(name: string, value: unknown): void;
@@ -45,6 +47,7 @@ interface MpvEvents {
   onNativeAudioChanged: ((mpvId: number) => void) | null;
   onNativeVolumeChanged: ((percent: number) => void) | null;
   onNativeSubSizeChanged: ((size: number) => void) | null;
+  onNativeSubDelayChanged: ((delay: number) => void) | null;
   onToggleSourcePanel: (() => void) | null;
   onBackRequested: (() => void) | null;
 }
@@ -89,6 +92,7 @@ export function waitForBridge(): Promise<void> {
           onNativeAudioChanged: null,
           onNativeVolumeChanged: null,
           onNativeSubSizeChanged: null,
+          onNativeSubDelayChanged: null,
           onToggleSourcePanel: null,
           onBackRequested: null,
         };
@@ -119,6 +123,9 @@ export function waitForBridge(): Promise<void> {
         });
         bridge.nativeSubSizeChanged.connect((size: number) => {
           if (window.mpvEvents?.onNativeSubSizeChanged) window.mpvEvents.onNativeSubSizeChanged(size);
+        });
+        bridge.nativeSubDelayChanged.connect((delay: number) => {
+          if (window.mpvEvents?.onNativeSubDelayChanged) window.mpvEvents.onNativeSubDelayChanged(delay);
         });
         bridge.toggleSourcePanel.connect(() => {
           if (window.mpvEvents?.onToggleSourcePanel) window.mpvEvents.onToggleSourcePanel();
@@ -158,8 +165,7 @@ export let mpvPaused = false;
 // ── Commands (send to mpv) ──────────────────────────────────────────
 
 export function mpvTogglePause(): void {
-  if (mpvPaused) window.mpvBridge?.resume();
-  else window.mpvBridge?.pause();
+  window.mpvBridge?.togglePause();
 }
 
 export function mpvPlay(url: string): void {
@@ -188,6 +194,10 @@ export function mpvSetAudioTrack(index: number): void {
 
 export function mpvSetSubtitleTrack(index: number): void {
   window.mpvBridge?.setSubtitleTrack(index);
+}
+
+export function mpvLoadExternalSubtitle(url: string, title?: string): void {
+  window.mpvBridge?.loadExternalSubtitle(url, title);
 }
 
 export function mpvSetSubFontSize(size: number): void {
@@ -257,6 +267,10 @@ export function onNativeVolumeChanged(cb: (percent: number) => void): void {
 
 export function onNativeSubSizeChanged(cb: (size: number) => void): void {
   if (window.mpvEvents) window.mpvEvents.onNativeSubSizeChanged = cb;
+}
+
+export function onNativeSubDelayChanged(cb: (delay: number) => void): void {
+  if (window.mpvEvents) window.mpvEvents.onNativeSubDelayChanged = cb;
 }
 
 export function onBackRequested(cb: () => void): void {

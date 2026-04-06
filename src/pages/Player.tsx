@@ -36,7 +36,7 @@ import { useIntro } from "../lib/useIntro";
 import { formatBytes } from "../lib/utils";
 import { playTorrent, fetchLivePeers, fetchLanIp, searchStreams, reportWatchProgress } from "../lib/api";
 import { encode } from "uqr";
-import { waitForBridge, mpvPlay, mpvSeek, mpvSetAudioTrack, mpvSetSubtitleTrack, mpvStop, mpvStopAndWait, mpvSetTitle, onMpvTimeChanged, onMpvDurationChanged, onMpvEofReached, onMpvPauseChanged, onNativeSubChanged, onNativeAudioChanged, onNativeSubSizeChanged, onBackRequested, onToggleSourcePanel, mpvSetSourceCount, mpvNotifySourcePanel, mpvSetPoster, mpvSetLoadingStatus, mpvSetSlowWarning } from "../lib/native-bridge";
+import { waitForBridge, mpvPlay, mpvSeek, mpvSetAudioTrack, mpvSetSubtitleTrack, mpvLoadExternalSubtitle, mpvStop, mpvStopAndWait, mpvSetTitle, onMpvTimeChanged, onMpvDurationChanged, onMpvEofReached, onMpvPauseChanged, onNativeSubChanged, onNativeAudioChanged, onNativeSubSizeChanged, onNativeSubDelayChanged, onBackRequested, onToggleSourcePanel, mpvSetSourceCount, mpvNotifySourcePanel, mpvSetPoster, mpvSetLoadingStatus, mpvSetSlowWarning } from "../lib/native-bridge";
 import { playbackKey, shouldRestorePosition } from "../lib/playback-position";
 import "./Player.css";
 
@@ -44,7 +44,7 @@ export default function Player() {
   const { infoHash, fileIndex } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { startStream, active, effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, rcQrRequested, setRcSessionId, setRcAuthToken, introRangeRef, sourcesRef, subSize, adjustSubSize } = usePlayer();
+  const { startStream, active, effectiveTimeRef, subsRef, activeSubRef, audioTracksRef, activeAudioRef, commandRef, dlProgressRef, dlSpeedRef, dlPeersRef, rcSessionId, rcAuthToken, rcRemoteConnected, rcQrRequested, setRcSessionId, setRcAuthToken, introRangeRef, sourcesRef, subSize, adjustSubSize, setSubSizeAbsolute, subDelayRef } = usePlayer();
   // Persist nav state to sessionStorage — location.state can be null on subsequent navigations
   // to the same URL in Qt WebEngine. Memoized to prevent new object reference every render.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -189,13 +189,22 @@ export default function Player() {
   // Apply auto-selected subtitle track to mpv
   const appliedSub = useRef(false);
   useEffect(() => {
-    if (appliedSub.current || !activeSub || subs.length < 2) return;
+    if (appliedSub.current || !activeSub) return;
     const idx = subs.findIndex(s => s.value === activeSub);
-    if (idx >= 0) {
+    if (idx < 0) return;
+    const sub = subs[idx];
+    // External subtitle: load via HTTP URL (sub-add with "select" activates it automatically)
+    if (sub.value.startsWith("file:")) {
+      const port = window.location.port;
+      const subUrl = `http://127.0.0.1:${port}/api/subtitle/${infoHash}/${sub.fileIndex}`;
+      mpvLoadExternalSubtitle(subUrl, sub.label);
+      appliedSub.current = true;
+    } else {
+      // Embedded subtitle: use existing track selection
       mpvSetSubtitleTrack(idx);
       appliedSub.current = true;
     }
-  }, [activeSub, subs]);
+  }, [activeSub, subs, infoHash]);
 
   const { introRange, showSkipIntro, handleSkipIntro } = useIntro({
     infoHash: infoHash!, fileIndex: fileIndex!, introRangeRef, getEffectiveTime, seekTo, location, mediaTitle,
@@ -257,23 +266,8 @@ export default function Player() {
       const streamUrl = debridStreamKey
         ? `http://127.0.0.1:${port}/api/debrid-stream?streamKey=${encodeURIComponent(debridStreamKey)}`
         : `http://127.0.0.1:${port}/api/stream/${infoHash}/${fileIndex}`;
-      console.log("[native-bridge] mpvPlay:", streamUrl);
-      try {
-        // Set poster for loading overlay before starting playback
-        const posterPath = state?.posterPath;
-        if (posterPath) {
-          mpvSetPoster(`https://image.tmdb.org/t/p/w1280${posterPath}`);
-        }
-        mpvSetTitle(mediaTitle || "");
-        mpvPlay(streamUrl);
-        console.log("[native-bridge] mpvPlay sent");
-      } catch (e) {
-        console.error("[native-bridge] mpvPlay error:", e);
-      }
-
-      // Register event handlers AFTER bridge is ready (window.mpvEvents
-      // doesn't exist until waitForBridge resolves)
-      // Track when playback actually starts to ignore stale EOF from previous mpvStop
+      // Register event handlers BEFORE mpvPlay so the initial pauseChanged(false)
+      // event isn't lost (it fires as soon as mpv processes the play command).
       let playbackStarted = false;
       let positionRestored = false;
       onMpvTimeChanged((t) => {
@@ -306,6 +300,20 @@ export default function Player() {
         setPlaying(!paused);
         if (paused) reportProgressRef.current();
       });
+
+      console.log("[native-bridge] mpvPlay:", streamUrl);
+      try {
+        // Set poster for loading overlay before starting playback
+        const posterPath = state?.posterPath;
+        if (posterPath) {
+          mpvSetPoster(`https://image.tmdb.org/t/p/w1280${posterPath}`);
+        }
+        mpvSetTitle(mediaTitle || "");
+        mpvPlay(streamUrl);
+        console.log("[native-bridge] mpvPlay sent");
+      } catch (e) {
+        console.error("[native-bridge] mpvPlay error:", e);
+      }
       // Sync React subtitle/audio state when QML native overlay changes tracks
       onNativeSubChanged((mpvId) => {
         if (mpvId === 0) {
@@ -317,11 +325,16 @@ export default function Player() {
         }
       });
       onNativeAudioChanged((mpvId) => {
-        // Only update React state — mpv already switched the track.
-        activeAudioRef.current = mpvId;
+        // Map mpv 1-based audio ID back to the streamIndex used by our track array.
+        // mpv audio IDs are sequential (1, 2, 3…) matching our audioTracksRef order.
+        const track = audioTracksRef.current[mpvId - 1];
+        activeAudioRef.current = track ? track.value : mpvId;
       });
       onNativeSubSizeChanged((size) => {
-        adjustSubSize(size - subSize);
+        setSubSizeAbsolute(size);
+      });
+      onNativeSubDelayChanged((delay) => {
+        subDelayRef.current = delay;
       });
       onBackRequested(() => {
         goBackRef.current();
@@ -341,6 +354,7 @@ export default function Player() {
         window.mpvEvents.onNativeSubChanged = null;
         window.mpvEvents.onNativeAudioChanged = null;
         window.mpvEvents.onNativeSubSizeChanged = null;
+        window.mpvEvents.onNativeSubDelayChanged = null;
         window.mpvEvents.onBackRequested = null;
         window.mpvEvents.onToggleSourcePanel = null;
       }
@@ -378,7 +392,15 @@ export default function Player() {
       },
       switchSubtitle: (val: string) => {
         const idx = subs.findIndex(s => s.value === val);
-        mpvSetSubtitleTrack(idx);
+        if (idx < 0) return;
+        const sub = subs[idx];
+        if (sub.value.startsWith("file:")) {
+          const port = window.location.port;
+          const subUrl = `http://127.0.0.1:${port}/api/subtitle/${infoHash}/${sub.fileIndex}`;
+          mpvLoadExternalSubtitle(subUrl, sub.label);
+        } else {
+          mpvSetSubtitleTrack(idx);
+        }
         activeSubRef.current = val;
       },
       switchAudio: (streamIndex: string | number) => {
