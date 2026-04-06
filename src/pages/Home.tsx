@@ -5,6 +5,7 @@ import ContentRow from "../components/ContentRow";
 import WatchHistoryRow from "../components/WatchHistoryRow";
 import { fetchTrending, fetchDiscover, fetchGenres, fetchContinueWatching, dismissWatchHistory, autoPlay, poster as posterUrl } from "../lib/api";
 import { waitForBridge, mpvSetPoster, mpvSetTitle, mpvSetLoading, mpvSetLoadingStatus } from "../lib/native-bridge";
+import { useRemoteMode } from "../lib/PlayerContext";
 import "./Home.css";
 
 function recentDateRange() {
@@ -18,6 +19,7 @@ function recentDateRange() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function Home() {
   const navigate = useNavigate();
+  const { isRemote, sessionId } = useRemoteMode();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [hero, setHero] = useState<any>(null);
   const [genres, setGenres] = useState<{ id: number; name: string }[]>([]);
@@ -45,18 +47,20 @@ export default function Home() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleContinuePlay = useCallback(async (item: any) => {
-    // Show loading overlay with poster immediately while searching for streams
     // Strip any episode suffix from title that may have been saved from a previous session
     const cleanTitle = item.title.replace(/\s*[—\-]\s*S\d+E\d+.*$/, "");
     const displayTitle = item.mediaType === "tv" && item.season != null
       ? `${cleanTitle} S${item.season}E${item.episode}${item.episodeTitle ? ` \u2014 ${item.episodeTitle}` : ""}`
       : cleanTitle;
-    waitForBridge().then(() => {
-      if (item.posterPath) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${item.posterPath}`);
-      mpvSetTitle(displayTitle);
-      mpvSetLoadingStatus("Finding best stream...");
-      mpvSetLoading(true);
-    });
+    // Show loading overlay with poster immediately while searching for streams
+    if (!isRemote) {
+      waitForBridge().then(() => {
+        if (item.posterPath) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${item.posterPath}`);
+        mpvSetTitle(displayTitle);
+        mpvSetLoadingStatus("Finding best stream...");
+        mpvSetLoading(true);
+      });
+    }
     let result;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,10 +74,31 @@ export default function Home() {
         item.imdbId,
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((window as any).__rattinCancelPlay) { (window as any).__rattinCancelPlay = false; mpvSetLoading(false); return; }
+      if ((window as any).__rattinCancelPlay) { (window as any).__rattinCancelPlay = false; if (!isRemote) mpvSetLoading(false); return; }
     } catch (err) {
-      mpvSetLoading(false);
+      if (!isRemote) mpvSetLoading(false);
       throw err; // re-throw so WatchHistoryRow falls back to Detail
+    }
+    if (isRemote) {
+      // Phone remote: send command to PC and navigate to remote controls
+      fetch("/api/rc/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          action: "start-stream",
+          value: {
+            infoHash: result.infoHash, fileIndex: result.fileIndex, title: displayTitle,
+            tags: result.tags, debridStreamKey: result.debridStreamKey,
+            year: item.year, type: item.mediaType, season: item.season, episode: item.episode,
+            imdbId: item.imdbId, tmdbId: item.tmdbId, posterPath: item.posterPath,
+            episodeTitle: item.episodeTitle, seasonEpisodeCount: item.seasonEpisodeCount,
+            resumePosition: item.position > 0 ? item.position : undefined,
+          },
+        }),
+      }).catch(() => {});
+      navigate("/remote", { state: { pendingTitle: displayTitle } });
+      return;
     }
     // Base name: strip any episode suffix that may have been saved from a previous session
     const baseName = item.title.replace(/\s*[—\-]\s*S\d+E\d+.*$/, "");
@@ -95,7 +120,7 @@ export default function Home() {
     };
     if (result.debridStreamKey) navState.debridStreamKey = result.debridStreamKey;
     navigate(`/play/${result.infoHash}/${result.fileIndex}`, { state: navState });
-  }, [navigate]);
+  }, [navigate, isRemote, sessionId]);
 
   return (
     <div className="home">
