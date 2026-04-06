@@ -197,7 +197,7 @@ export default function Player() {
     if (sub.value.startsWith("file:")) {
       const port = window.location.port;
       const subUrl = `http://127.0.0.1:${port}/api/subtitle/${infoHash}/${sub.fileIndex}`;
-      mpvLoadExternalSubtitle(subUrl);
+      mpvLoadExternalSubtitle(subUrl, sub.label);
       appliedSub.current = true;
     } else {
       // Embedded subtitle: use existing track selection
@@ -392,7 +392,7 @@ export default function Player() {
         if (sub.value.startsWith("file:")) {
           const port = window.location.port;
           const subUrl = `http://127.0.0.1:${port}/api/subtitle/${infoHash}/${sub.fileIndex}`;
-          mpvLoadExternalSubtitle(subUrl);
+          mpvLoadExternalSubtitle(subUrl, sub.label);
         } else {
           mpvSetSubtitleTrack(idx);
         }
