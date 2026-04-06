@@ -25,6 +25,7 @@ Window {
     property int activeSub: 0
     property int activeAudio: 1
     property int subSize: 55
+    property real subDelay: 0.0
     property bool sourcePanelOpen: false
     property int sourceCount: 0
     property bool coreIdle: true
@@ -138,7 +139,7 @@ Window {
         signal toggleSourcePanel()               // QML→JS: open/close source panel
         signal sourcePanelChanged(bool open)     // JS→QML: source panel state changed
 
-        function play(url) { bridge.play(url) }
+        function play(url) { root.subDelay = 0.0; bridge.play(url) }
         function setSourceCount(count) { root.sourceCount = count }
         function notifySourcePanel(open) { transport.sourcePanelChanged(open) }
         function setPoster(url) { root.posterUrl = url }
@@ -156,7 +157,7 @@ Window {
             // mpv uses 1-based IDs, index < 0 means off (sid=0 in QML)
             transport.subtitleTrackChanged(index < 0 ? 0 : index + 1)
         }
-        function loadExternalSubtitle(url) { bridge.loadExternalSubtitle(url) }
+        function loadExternalSubtitle(url, title) { bridge.loadExternalSubtitle(url, title || "") }
         function stop() { bridge.stop() }
         function setTitle(title) { root.mediaTitle = title }
         function setProperty(name, value) { bridge.setProperty(name, value) }
@@ -653,7 +654,7 @@ Window {
             anchors.bottom: bottomBar.top
             anchors.rightMargin: 16
             anchors.bottomMargin: 8
-            width: 260
+            width: 290
             height: Math.min(subListCol.height + subSizeRow.height + 52, 340)
             radius: 8
             color: "#E0181818"
@@ -661,7 +662,7 @@ Window {
 
             MouseArea { anchors.fill: parent }
 
-            // Size controls fixed at bottom
+            // Size + delay controls fixed at bottom
             Column {
                 id: subSizeRow
                 anchors.left: parent.left
@@ -686,6 +687,28 @@ Window {
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
                             onClicked: { root.subSize = Math.min(100, root.subSize + 5); bridge.setProperty("sub-font-size", root.subSize); transport.nativeSubSizeChanged(root.subSize) }
+                        }
+                    }
+
+                    Item { width: 16; height: 1 }
+
+                    Text {
+                        text: "\u2212"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subDelay = Math.round((root.subDelay - 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay) }
+                        }
+                    }
+                    Text {
+                        text: root.subDelay.toFixed(1) + "s"
+                        color: root.subDelay === 0 ? "#888" : "#e8a0bf"
+                        font.pixelSize: 12; width: 36; horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        text: "+"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subDelay = Math.round((root.subDelay + 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay) }
                         }
                     }
                 }

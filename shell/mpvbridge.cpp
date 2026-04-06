@@ -72,17 +72,19 @@ void MpvBridge::setSubtitleTrack(int index)
     }
 }
 
-void MpvBridge::loadExternalSubtitle(const QString &url)
+void MpvBridge::loadExternalSubtitle(const QString &url, const QString &title)
 {
     if (!m_mpv) return;
     if (m_loadPending) {
-        // File not ready yet — queue for when first time-pos arrives
         fprintf(stderr, "[bridge] queuing external subtitle (load pending): %s\n", url.toUtf8().constData());
         m_pendingSubUrl = url;
+        m_pendingSubTitle = title;
         return;
     }
     fprintf(stderr, "[bridge] loading external subtitle: %s\n", url.toUtf8().constData());
-    m_mpv->command(QVariantList{"sub-add", url, "select"});
+    QVariantList cmd = {"sub-add", url, "select"};
+    if (!title.isEmpty()) cmd.append(title);
+    m_mpv->command(cmd);
     emit externalSubtitleLoaded();
 }
 
@@ -119,8 +121,11 @@ void MpvBridge::onMpvEvent(const QString &eventName, const QVariant &value)
         m_loadPending = false;  // New file is producing frames — EOF is real from now on
         if (!m_pendingSubUrl.isEmpty()) {
             fprintf(stderr, "[bridge] loading queued external subtitle: %s\n", m_pendingSubUrl.toUtf8().constData());
-            m_mpv->command(QVariantList{"sub-add", m_pendingSubUrl, "select"});
+            QVariantList cmd = {"sub-add", m_pendingSubUrl, "select"};
+            if (!m_pendingSubTitle.isEmpty()) cmd.append(m_pendingSubTitle);
+            m_mpv->command(cmd);
             m_pendingSubUrl.clear();
+            m_pendingSubTitle.clear();
             emit externalSubtitleLoaded();
         }
         emit timeChanged(value.toDouble());
