@@ -585,6 +585,11 @@ export default function Remote() {
             <span className="remote-sub-size-val">{state.subSize ?? 55}</span>
             <button className="remote-sub-size-btn" onClick={() => sendCommand("sub-size", 5)} disabled={isDisabled}>A+</button>
           </div>
+          <div className="remote-sub-size">
+            <button className="remote-sub-size-btn" onClick={() => sendCommand("sub-delay", -0.1)} disabled={isDisabled}>−0.1s</button>
+            <span className="remote-sub-size-val" style={{ color: (state.subDelay ?? 0) === 0 ? undefined : "#e8a0bf" }}>{(state.subDelay ?? 0).toFixed(1)}s</span>
+            <button className="remote-sub-size-btn" onClick={() => sendCommand("sub-delay", 0.1)} disabled={isDisabled}>+0.1s</button>
+          </div>
         </div>
       )}
 

@@ -18,10 +18,12 @@ public slots:
     void play(const QString &url);
     void pause();
     void resume();
+    void togglePause();
     void seek(double seconds);
     void setVolume(int percent);
     void setAudioTrack(int index);
     void setSubtitleTrack(int index);
+    void loadExternalSubtitle(const QString &url, const QString &title = QString());
     void stop();
     QVariant getProperty(const QString &name) const;
     void setProperty(const QString &name, const QVariant &value);
@@ -34,6 +36,7 @@ signals:
     void pauseChanged(bool paused);
     void isPlayingChanged(bool playing);
     void coreIdleChanged(bool idle);
+    void externalSubtitleLoaded();
 
 private slots:
     void onMpvEvent(const QString &eventName, const QVariant &value);
@@ -42,4 +45,6 @@ private:
     MpvObject *m_mpv;
     bool m_isPlaying = false;
     bool m_loadPending = false;  // true after play() until first time-pos arrives
+    QString m_pendingSubUrl;
+    QString m_pendingSubTitle;
 };

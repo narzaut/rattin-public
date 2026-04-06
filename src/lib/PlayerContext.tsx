@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode, type MutableRefObject } from "react";
 import type { SubtitleOption } from "./useSubtitles";
 import type { AudioTrackOption } from "./useAudioTracks";
-import { mpvTogglePause, mpvSetVolume, mpvSetSubFontSize, mpvStop, mpvStopAndWait } from "./native-bridge";
+import { mpvTogglePause, mpvSetVolume, mpvSetSubFontSize, mpvStop, mpvStopAndWait, mpvPaused } from "./native-bridge";
 import { getRemoteSessionId, REMOTE_SESSION_EVENT } from "./remote-session";
 import { playbackKey } from "./playback-position";
 
@@ -66,6 +66,8 @@ interface PlayerContextValue {
   sourcesRef: MutableRefObject<any[]>;
   subSize: number;
   adjustSubSize: (delta: number) => void;
+  setSubSizeAbsolute: (size: number) => void;
+  subDelayRef: MutableRefObject<number>;
   switching: boolean;
 }
 
@@ -109,8 +111,6 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const playingRef = useRef(false);
-  playingRef.current = playing;
   const volumeRef = useRef(1);
   volumeRef.current = volume;
   const effectiveTimeRef = useRef<EffectiveTime | null>(null);
@@ -128,6 +128,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
   const [subSize, setSubSize] = useState(55);
   const subSizeRef = useRef(55);
   subSizeRef.current = subSize;
+  const subDelayRef = useRef(0);
   const [switching, setSwitching] = useState(false);
   const switchingRef = useRef(false);
   switchingRef.current = switching;
@@ -191,6 +192,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
     audioTracksRef.current = [];
     activeAudioRef.current = null;
     introRangeRef.current = null;
+    subDelayRef.current = 0;
     setActive({ infoHash: ih, fileIndex: fi, title, tags, debridStreamKey });
   }, [active]);
 
@@ -216,6 +218,11 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
       mpvSetSubFontSize(next);
       return next;
     });
+  }, []);
+
+  // Sync React state to match QML — mpv is already set, no need to call mpvSetSubFontSize
+  const setSubSizeAbsolute = useCallback((size: number) => {
+    setSubSize(Math.max(20, Math.min(100, size)));
   }, []);
 
   startStreamRef.current = startStream;
@@ -268,6 +275,12 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
         case "sub-size":
           adjustSubSize(value);
           break;
+        case "sub-delay": {
+          const next = Math.round((subDelayRef.current + value) * 10) / 10;
+          subDelayRef.current = next;
+          window.mpvBridge?.setProperty("sub-delay", next);
+          break;
+        }
         case "skip-intro": {
           const range = introRangeRef.current;
           if (range && commandRef.current?.seek) commandRef.current.seek(range.end);
@@ -363,7 +376,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
       const state = {
         sessionId: rcSessionId,
         authToken: rcAuthToken,
-        playing: playingRef.current,
+        playing: !mpvPaused,
         currentTime: ct,
         duration: dur,
         title: active?.title || "",
@@ -381,6 +394,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
         introActive: !!(introRangeRef.current && ct >= introRangeRef.current.start && ct < introRangeRef.current.end),
         introEnd: introRangeRef.current?.end ?? null,
         subSize: subSizeRef.current,
+        subDelay: subDelayRef.current,
         sources: sourcesRef.current,
         switching: switchingRef.current,
         connected: true,
@@ -422,7 +436,7 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
       commandRef, navigateRef,
       rcSessionId, setRcSessionId, rcAuthToken, setRcAuthToken, rcRemoteConnected, rcQrRequested,
       introRangeRef, sourcesRef,
-      subSize, adjustSubSize, switching,
+      subSize, adjustSubSize, setSubSizeAbsolute, subDelayRef, switching,
     }}>
       {children}
     </PlayerContext.Provider>

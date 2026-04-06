@@ -25,6 +25,7 @@ Window {
     property int activeSub: 0
     property int activeAudio: 1
     property int subSize: 55
+    property real subDelay: 0.0
     property bool sourcePanelOpen: false
     property int sourceCount: 0
     property bool coreIdle: true
@@ -37,8 +38,7 @@ Window {
     property bool hasAlternateSources: false
 
     function togglePause() {
-        if (root.paused) bridge.resume()
-        else bridge.pause()
+        bridge.togglePause()
     }
 
     function toggleFullscreen() {
@@ -134,11 +134,17 @@ Window {
         signal nativeVolumeChanged(int percent)  // QML→JS: native overlay changed volume
         signal volumeChanged(int percent)        // JS→QML: JS changed volume
         signal nativeSubSizeChanged(int size)    // QML→JS: native overlay changed sub size
+        signal nativeSubDelayChanged(real delay)  // QML→JS: native overlay changed sub delay
         signal backRequested()                    // QML→JS: user pressed back in native overlay
         signal toggleSourcePanel()               // QML→JS: open/close source panel
         signal sourcePanelChanged(bool open)     // JS→QML: source panel state changed
 
-        function play(url) { bridge.play(url) }
+        function play(url) {
+            root.subDelay = 0.0; bridge.setProperty("sub-delay", 0)
+            root.subTracks = []; root.reversedSubTracks = []; root.activeSub = 0
+            root.audioTracks = []; root.activeAudio = 1
+            bridge.play(url)
+        }
         function setSourceCount(count) { root.sourceCount = count }
         function notifySourcePanel(open) { transport.sourcePanelChanged(open) }
         function setPoster(url) { root.posterUrl = url }
@@ -147,6 +153,7 @@ Window {
         function setSlowWarning(show, hasAlt) { root.slowWarning = show; root.hasAlternateSources = hasAlt; if (!show) root.slowWarningDismissed = false }
         function pause() { bridge.pause() }
         function resume() { bridge.resume() }
+        function togglePause() { bridge.togglePause() }
         function seek(seconds) { bridge.seek(seconds) }
         function setVolume(percent) { bridge.setVolume(percent); transport.volumeChanged(percent) }
         function setAudioTrack(index) { bridge.setAudioTrack(index); transport.audioTrackChanged(index + 1) }
@@ -156,6 +163,7 @@ Window {
             // mpv uses 1-based IDs, index < 0 means off (sid=0 in QML)
             transport.subtitleTrackChanged(index < 0 ? 0 : index + 1)
         }
+        function loadExternalSubtitle(url, title) { bridge.loadExternalSubtitle(url, title || "") }
         function stop() { bridge.stop() }
         function setTitle(title) { root.mediaTitle = title }
         function setProperty(name, value) { bridge.setProperty(name, value) }
@@ -223,6 +231,17 @@ Window {
         }
     }
 
+    // Refresh QML track list when C++ loads an external subtitle
+    Connections {
+        target: bridge
+        function onExternalSubtitleLoaded() {
+            root.refreshTracks()
+            // sub-add "select" activates the track — sync QML indicator
+            var sid = bridge.getProperty("sid")
+            if (sid !== undefined && sid !== false) root.activeSub = sid
+        }
+    }
+
     MpvObject {
         id: mpvPlayer
         anchors.fill: parent
@@ -272,8 +291,18 @@ Window {
         onTriggered: {
             root.refreshTracks()
             // Stop retrying once we have tracks
-            if (root.subTracks.length > 0 || root.audioTracks.length > 1)
+            if (root.subTracks.length > 0 || root.audioTracks.length > 1) {
                 trackRefreshTimer.stop()
+                // Sync QML indicators with what mpv actually selected
+                var sid = bridge.getProperty("sid")
+                if (sid !== undefined && sid !== false) root.activeSub = sid
+                var aid = bridge.getProperty("aid")
+                if (aid !== undefined && aid !== false) {
+                    root.activeAudio = aid
+                    // Notify JS so React/phone remote state stays in sync
+                    transport.nativeAudioChanged(aid)
+                }
+            }
         }
     }
 
@@ -646,7 +675,7 @@ Window {
             anchors.bottom: bottomBar.top
             anchors.rightMargin: 16
             anchors.bottomMargin: 8
-            width: 260
+            width: 290
             height: Math.min(subListCol.height + subSizeRow.height + 52, 340)
             radius: 8
             color: "#E0181818"
@@ -654,7 +683,7 @@ Window {
 
             MouseArea { anchors.fill: parent }
 
-            // Size controls fixed at bottom
+            // Size + delay controls fixed at bottom
             Column {
                 id: subSizeRow
                 anchors.left: parent.left
@@ -679,6 +708,28 @@ Window {
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
                             onClicked: { root.subSize = Math.min(100, root.subSize + 5); bridge.setProperty("sub-font-size", root.subSize); transport.nativeSubSizeChanged(root.subSize) }
+                        }
+                    }
+
+                    Item { width: 16; height: 1 }
+
+                    Text {
+                        text: "\u2212"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subDelay = Math.round((root.subDelay - 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay); transport.nativeSubDelayChanged(root.subDelay) }
+                        }
+                    }
+                    Text {
+                        text: root.subDelay.toFixed(1) + "s"
+                        color: root.subDelay === 0 ? "#888" : "#e8a0bf"
+                        font.pixelSize: 12; width: 36; horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        text: "+"; color: "#ccc"; font.pixelSize: 14
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.subDelay = Math.round((root.subDelay + 0.1) * 10) / 10; bridge.setProperty("sub-delay", root.subDelay); transport.nativeSubDelayChanged(root.subDelay) }
                         }
                     }
                 }
