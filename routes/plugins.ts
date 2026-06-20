@@ -8,7 +8,7 @@ import type { PluginIndexEntry } from "../lib/plugins/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const CDN_INDEX_URL = "https://cdn.rattin.app/plugin-index.json";
+const CDN_INDEX_URL = "https://rattin-plugins.pages.dev/plugin-index.json";
 const LOCAL_INDEX_PATH = path.join(__dirname, "..", "public", "plugin-index.json");
 
 async function fetchPluginIndex(): Promise<PluginIndexEntry[]> {
