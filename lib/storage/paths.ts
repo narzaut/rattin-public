@@ -10,12 +10,16 @@ export function configDir(): string {
     : path.join(os.homedir(), ".config", "rattin");
 }
 
+function cacheBase(): string {
+  return isWindows ? os.tmpdir() : path.join(os.homedir(), ".cache");
+}
+
 export function downloadDir(): string {
-  return process.env.DOWNLOAD_PATH || path.join(os.tmpdir(), "rattin");
+  return process.env.DOWNLOAD_PATH || path.join(cacheBase(), "rattin");
 }
 
 export function transcodeDir(): string {
-  return process.env.TRANSCODE_PATH || path.join(os.tmpdir(), "rattin-transcoded");
+  return process.env.TRANSCODE_PATH || path.join(cacheBase(), "rattin-transcoded");
 }
 
 export function dataDir(profile = "default"): string {
