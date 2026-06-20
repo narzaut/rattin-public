@@ -36,7 +36,7 @@ export default function tmdbRoutes(app: Express, ctx: ServerContext): void {
     if (!apiKey) return res.status(400).json({ error: "apiKey required" });
     try {
       const testRes = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${apiKey}`,
-        { signal: AbortSignal.timeout(10000) });
+        { headers: { "User-Agent": "Rattin/2.0" }, signal: AbortSignal.timeout(10000) });
       if (!testRes.ok) return res.status(400).json({ error: "Invalid TMDB API key" });
     } catch {
       return res.status(400).json({ error: "Failed to verify key with TMDB" });
