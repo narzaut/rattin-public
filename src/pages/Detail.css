@@ -162,6 +162,19 @@
   cursor: wait;
 }
 
+.detail-play-btn.is-muted {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: default;
+}
+
+.detail-availability-warning {
+  font-size: 0.8rem;
+  color: var(--yellow);
+  font-weight: 500;
+}
+
 .detail-save-btn {
   display: flex;
   align-items: center;

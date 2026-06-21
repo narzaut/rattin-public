@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus } from "../lib/api";
+import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus, checkAvailability } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
 import { useRemoteMode } from "../lib/PlayerContext";
 import { waitForBridge, mpvSetPoster, mpvSetTitle, mpvSetLoading, mpvSetLoadingStatus } from "../lib/native-bridge";
@@ -37,6 +37,8 @@ export default function Detail() {
   const [showPicker, setShowPicker] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [streams, setStreams] = useState<any[] | null>(null);
+  const [hasAnySource, setHasAnySource] = useState<boolean | null>(null);  // null=checking, true=available, false=unavailable
+  const [availabilityWarning, setAvailabilityWarning] = useState<string>("");
   const [pluginName, setPluginName] = useState<string>("");
   const [pickerSeason, setPickerSeason] = useState<number | undefined>(undefined);
   const [pickerEpisode, setPickerEpisode] = useState<number | undefined>(undefined);
@@ -106,6 +108,25 @@ export default function Detail() {
     fetcher(id!).then((d) => { if (!cancelled) setData(d); }).catch(() => {});
     return () => { cancelled = true; };
   }, [id, type, recoveryKey]);
+
+  // Check if any sources exist for this title (plugin-driven signal)
+  useEffect(() => {
+    if (!data || !id) return;
+    const title = data.title || data.name;
+    const year = parseInt((data.release_date || data.first_air_date || "").slice(0, 4)) || undefined;
+    if (!title) return;
+    let cancelled = false;
+    setHasAnySource(null);
+    setAvailabilityWarning("");
+    checkAvailability([{ id, title, year, type: type || "movie" }]).then(({ available, warning }) => {
+      if (cancelled) return;
+      setHasAnySource(available.has(id));
+      if (warning) setAvailabilityWarning(warning);
+    }).catch(() => {
+      if (!cancelled) setHasAnySource(true); // fail open
+    });
+    return () => { cancelled = true; };
+  }, [data, id, type]);
 
   useEffect(() => {
     let cancelled = false;
@@ -454,34 +475,46 @@ export default function Detail() {
             </div>
             <p className="detail-overview">{data.overview}</p>
             <div className="detail-actions">
-              <button
-                className="detail-play-btn"
-                onClick={() => {
-                  if (type === "tv" && isValidResumePoint(resumePoint, seasons)) {
-                    handlePlay(resumePoint.season, resumePoint.episode);
-                  } else if (type === "tv") {
-                    handlePlay(1, 1);
-                  } else {
-                    handlePlay();
-                  }
-                }}
-                disabled={playState === "loading"}
-              >
-                {playState === "loading" ? (
-                  "Searching..."
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                    {type === "tv" && isValidResumePoint(resumePoint, seasons)
-                      ? `Resume S${resumePoint.season}E${resumePoint.episode}`
-                      : type === "movie" && resumePoint?.position > 0
-                        ? "Resume"
-                        : "Play"}
-                  </>
-                )}
-              </button>
+              {hasAnySource === false ? (
+                <button className="detail-play-btn is-muted" disabled>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Not yet available
+                </button>
+              ) : (
+                <button
+                  className="detail-play-btn"
+                  onClick={() => {
+                    if (type === "tv" && isValidResumePoint(resumePoint, seasons)) {
+                      handlePlay(resumePoint.season, resumePoint.episode);
+                    } else if (type === "tv") {
+                      handlePlay(1, 1);
+                    } else {
+                      handlePlay();
+                    }
+                  }}
+                  disabled={playState === "loading" || hasAnySource === null}
+                >
+                  {playState === "loading" ? (
+                    "Searching..."
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      {type === "tv" && isValidResumePoint(resumePoint, seasons)
+                        ? `Resume S${resumePoint.season}E${resumePoint.episode}`
+                        : type === "movie" && resumePoint?.position > 0
+                          ? "Resume"
+                          : "Play"}
+                    </>
+                  )}
+                </button>
+              )}
+              {availabilityWarning && (
+                <span className="detail-availability-warning">{availabilityWarning}</span>
+              )}
               <button
                 className={`detail-save-btn${isSaved ? " saved" : ""}`}
                 onClick={() => {
@@ -640,14 +673,15 @@ export default function Detail() {
                         <button
                           className="episode-pick"
                           onClick={() => openPicker(selectedSeason, ep.episode_number)}
-                          title="Other versions"
+                          title={hasAnySource === false ? "Not yet available" : "Other versions"}
+                          disabled={hasAnySource === false}
                         >
-                          Other versions
+                          {hasAnySource === false ? "Not available" : "Other versions"}
                         </button>
                         <button
                           className="episode-play"
                           onClick={() => handlePlay(selectedSeason, ep.episode_number)}
-                          disabled={playState === "loading"}
+                  disabled={playState === "loading" || hasAnySource === false}
                         >
                           &#9654;
                         </button>

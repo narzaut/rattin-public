@@ -47,7 +47,7 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
           year: parseInt((r.release_date || r.first_air_date || "").slice(0, 4)) || undefined,
           type: r.media_type || (r.first_air_date ? "tv" : "movie"),
         }));
-        const available = await checkAvailability(batch);
+        const { available } = await checkAvailability(batch);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (!cancelled) setItems(results.filter((r: any) => available.has(r.id)));
       })
