@@ -278,9 +278,16 @@ void MpvObject::handleMpvEvent(mpv_event *event)
         emit mpvEvent(QString::fromUtf8(prop->name), value);
         break;
     }
-    case MPV_EVENT_END_FILE:
-        emit mpvEvent("eof", QVariant());
+    case MPV_EVENT_END_FILE: {
+        auto *endFile = static_cast<mpv_event_end_file *>(event->data);
+        fprintf(stderr, "[mpv] END_FILE reason=%d error=%d\n", endFile->reason, endFile->error);
+        if (endFile->reason == MPV_END_FILE_REASON_ERROR) {
+            emit mpvEvent("load-error", QVariant(endFile->error));
+        } else {
+            emit mpvEvent("eof", QVariant());
+        }
         break;
+    }
     default:
         break;
     }

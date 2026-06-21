@@ -169,3 +169,213 @@ img {
   0%, 100% { box-shadow: 0 0 0 rgba(201, 168, 76, 0); }
   50% { box-shadow: 0 0 24px rgba(201, 168, 76, 0.15); }
 }
+
+@keyframes settingsSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Shared design tokens — used across pages and components to keep
+   visual language consistent with the Settings modal.
+   ────────────────────────────────────────────────────────────────── */
+
+/* Eyebrow / overline label, used above section titles */
+.app-eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+}
+
+/* Section header — small uppercase label with a hairline gold rule */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.section-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Page title — large display headline used at the top of pages */
+.page-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  margin-bottom: 32px;
+}
+
+.page-title-row .page-title {
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Inline pill / chip — used for counts, counts, lightweight status */
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.app-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.app-chip.is-accent {
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--accent-bright);
+  border-color: rgba(201, 168, 76, 0.25);
+}
+
+.app-chip.is-success {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
+/* Anchored status bar — for inline error / success / info states */
+.app-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.45;
+  animation: statusBarIn 0.22s ease-out;
+}
+
+.app-status-bar svg {
+  flex-shrink: 0;
+}
+
+.app-status-bar.is-error {
+  background: rgba(251, 113, 133, 0.08);
+  color: var(--red);
+  border: 1px solid rgba(251, 113, 133, 0.18);
+}
+
+.app-status-bar.is-success {
+  background: rgba(74, 222, 128, 0.08);
+  color: var(--green);
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.app-status-bar.is-info {
+  background: rgba(201, 168, 76, 0.06);
+  color: var(--accent-bright);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+}
+
+@keyframes statusBarIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Empty state — icon chip + title + subtitle + optional action */
+.app-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.app-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(201, 168, 76, 0.12), rgba(201, 168, 76, 0.03));
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-bright);
+  margin-bottom: 18px;
+}
+
+.app-empty-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  letter-spacing: -0.2px;
+}
+
+.app-empty-sub {
+  font-size: 0.88rem;
+  margin: 0 0 22px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Page back link */
+.app-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  margin-bottom: 18px;
+  transition: color var(--transition);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.app-back-link:hover {
+  color: var(--text-primary);
+}

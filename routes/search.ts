@@ -28,6 +28,21 @@ export default function searchRoutes(app: Express, ctx: ServerContext): void {
 
 const SEARCH_TIMEOUT = 10000;
 
+// Used to seed DHT peer discovery for magnet links.
+// WebTorrent does DHT lookups, but without tracker seeds the bootstrap is slow.
+const TRACKERS = [
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+  "udp://tracker.dler.org:6969/announce",
+  "udp://open.demonii.com:1337/announce",
+];
+
+function buildMagnet(infoHash: string, name: string): string {
+  const trackers = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
+  return `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name)}${trackers}`;
+}
+
 async function searchTVViaPlugin(
   pluginRegistry: PluginRegistry,
   title: string,
@@ -75,23 +90,17 @@ app.post("/api/check-availability", async (req: Request, res: Response) => {
   const { items } = req.body as { items?: Array<{ id: number; title: string; year?: string; type?: string }> };
   if (!Array.isArray(items) || items.length === 0) return res.json({ available: [] });
 
-  // No plugin installed — fail open (show everything)
-  if (!ctx.pluginRegistry?.isRunning()) {
-    const capped = items.slice(0, 40);
-    return res.json({ available: capped.map((i) => i.id) });
-  }
-
   const capped = items.slice(0, 40);
   try {
-    const result = await ctx.pluginRegistry.availability(
+    const result = await ctx.pluginRegistry!.availability(
       capped.map((item) => ({ title: item.title, year: Number(item.year) || undefined, type: item.type || "movie" }))
     );
     const available = result.available.map((idx) => capped[idx]?.id).filter(Boolean);
     log("info", "Availability check", { requested: capped.length, available: available.length });
     res.json({ available });
-  } catch (err) {
-    log("err", "Availability check failed", { error: (err as Error).message });
-    res.json({ available: capped.map((i) => i.id) }); // fail open
+  } catch {
+    // Plugin not installed or search failed — fail open (show everything)
+    res.json({ available: capped.map((i) => i.id) });
   }
 });
 
@@ -103,19 +112,18 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
   };
   if (!title) return res.status(400).json({ error: "Title is required" });
 
-  if (!ctx.pluginRegistry?.isRunning()) {
-    return res.status(503).json({ error: "no_source" });
-  }
-
   let results: SearchResult[];
   try {
     if (type === "tv" && season && episode) {
-      results = await searchTVViaPlugin(ctx.pluginRegistry, title, season, episode, imdbId);
+      results = await searchTVViaPlugin(ctx.pluginRegistry!, title, season, episode, imdbId);
     } else {
       const query = year ? `${title} ${year}` : title;
-      results = await ctx.pluginRegistry.search({ query, type: (type as "movie" | "tv") || "movie", imdbId });
+      results = await ctx.pluginRegistry!.search({ query, type: (type as "movie" | "tv") || "movie", imdbId });
     }
   } catch (err) {
+    if ((err as Error).message === "No plugin installed") {
+      return res.status(503).json({ error: "no_source" });
+    }
     log("err", "Plugin search failed", { error: (err as Error).message });
     return res.status(502).json({ error: "search_failed" });
   }
@@ -275,7 +283,7 @@ app.post("/api/play-torrent", async (req: Request, res: Response) => {
   if (!infoHash) return res.status(400).json({ error: "infoHash is required" });
 
   const tags = parseTags(name || "");
-  const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name || "")}`;
+  const magnet = buildMagnet(infoHash, name || "");
 
   // Try debrid if enabled — no WebTorrent fallback
   const debrid = getDebridProvider();

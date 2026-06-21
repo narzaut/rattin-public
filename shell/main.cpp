@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <clocale>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -23,6 +24,7 @@
 
 #include "mpvobject.h"
 #include "mpvbridge.h"
+#include "shutdownhandler.h"
 
 static int findFreePort()
 {
@@ -92,6 +94,7 @@ int main(int argc, char *argv[])
     app.setApplicationName("Rattin");
     app.setOrganizationName("Rattin");
     app.setApplicationVersion("1.0.0");
+    app.setQuitOnLastWindowClosed(true);
 
     // Set window icon — on Linux, look next to the binary or in standard paths;
     // on Windows the .exe already embeds the icon via rattin.rc.
@@ -128,7 +131,19 @@ int main(int argc, char *argv[])
             args->flags |= CREATE_NO_WINDOW;
         });
 #endif
-    serverProcess->setProcessChannelMode(QProcess::ForwardedChannels);
+
+    // Pipe server stdout/stderr to a log file under TEMP so it's accessible
+    // from PowerShell with: Get-Content $env:TEMP\rattin-shell.log -Tail 200 -Wait
+    // Override the path with RATTIN_LOG_FILE env var. Truncated on each launch.
+    QString logPath = qEnvironmentVariable("RATTIN_LOG_FILE",
+        QDir(QDir::tempPath()).filePath("rattin-shell.log"));
+    {
+        QFile clear(logPath);
+        if (clear.open(QIODevice::WriteOnly | QIODevice::Truncate)) clear.close();
+    }
+    serverProcess->setStandardOutputFile(logPath, QIODevice::WriteOnly | QIODevice::Append);
+    serverProcess->setStandardErrorFile(logPath, QIODevice::WriteOnly | QIODevice::Append);
+    fprintf(stderr, "[shell] server logs: %s\n", qPrintable(logPath));
 
     // Find the app directory (where server.ts and node_modules live).
     // When MAGNET_APP_DIR is set (AppImage mode), use that directly.
@@ -255,29 +270,25 @@ int main(int argc, char *argv[])
 
     serverProcess->start(runner, args);
 
-    // Clean up server on exit — kill the whole process group, not just
-    // the direct child, so tsx's child (the actual server) and any
-    // ffmpeg grandchildren are also terminated.
+    // Keep aboutToQuit as a fallback — but the real shutdown path is
+    // QML's onClosing → shutdown.shutdown() → TerminateProcess.
     QObject::connect(&app, &QGuiApplication::aboutToQuit, [serverProcess]() {
-#ifndef Q_OS_WIN
+        fprintf(stderr, "[shell] aboutToQuit — killing server and exiting\n");
+#ifdef Q_OS_WIN
+        QString pidStr = QString::number(serverProcess->processId());
+        QProcess::startDetached("taskkill", {"/T", "/F", "/PID", pidStr});
+        TerminateProcess(GetCurrentProcess(), 0);
+#else
         auto pid = serverProcess->processId();
-        if (pid > 0) ::kill(-pid, SIGTERM);   // negative PID = process group
-#else
-        serverProcess->terminate();
+        if (pid > 0) ::kill(-pid, SIGKILL);
+        _exit(0);
 #endif
-        if (!serverProcess->waitForFinished(3000)) {
-#ifndef Q_OS_WIN
-            auto pid2 = serverProcess->processId();
-            if (pid2 > 0) ::kill(-pid2, SIGKILL);
-#else
-            serverProcess->kill();
-#endif
-        }
     });
 
     // Load QML immediately so the user sees a window right away.
     // The WebView URL is set later once the server responds.
     auto *bridge = new MpvBridge(&app);
+    auto *shutdown = new ShutdownHandler(serverProcess, &app);
 
     auto *engine = new QQmlApplicationEngine(&app);
     engine->rootContext()->setContextProperty("serverPort", port);
@@ -285,6 +296,7 @@ int main(int argc, char *argv[])
         QString("http://127.0.0.1:%1?native=1").arg(port));
     engine->rootContext()->setContextProperty("serverReady", false);
     engine->rootContext()->setContextProperty("bridge", bridge);
+    engine->rootContext()->setContextProperty("shutdown", shutdown);
 
     // Configure QWebEngine disk cache so images/assets persist across navigations.
     auto *profile = QWebEngineProfile::defaultProfile();
@@ -306,24 +318,15 @@ int main(int argc, char *argv[])
 
     engine->load(QUrl("qrc:/main.qml"));
 
-    // On Windows, the Qt app may not quit when the window is closed if
-    // WebEngine or mpv is still active. Explicitly connect to the window's
-    // closing signal and force the app to quit.
-    QObject::connect(engine, &QQmlApplicationEngine::objectCreated, [&app](QObject *obj) {
-        if (!obj) return;
-        auto *window = qobject_cast<QQuickWindow *>(obj);
-        if (window) {
-            QObject::connect(window, &QQuickWindow::closing, [&app]() {
-                app.quit();
-            });
-        }
-    });
-
     // Poll for server readiness. When ready, tell QML to show the WebView.
     waitForServer(port, &app, [engine]() {
         fprintf(stderr, "[shell] server ready\n");
         engine->rootContext()->setContextProperty("serverReady", true);
     });
 
-    return app.exec();
+    // app.exec() should never return — QML's onClosing calls shutdown.shutdown()
+    // which calls TerminateProcess. If we somehow get here, force-exit.
+    int ret = app.exec();
+    fprintf(stderr, "[shell] event loop returned unexpectedly — force exit\n");
+    std::_Exit(ret);
 }

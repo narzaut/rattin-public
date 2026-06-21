@@ -3,13 +3,16 @@
   min-height: 100vh;
 }
 
-.search-page h1 {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 500;
+.search-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 32px;
-  color: var(--text-primary);
   animation: fadeUp 0.5s ease-out both;
+}
+
+.search-page-header h1 {
+  margin: 0;
 }
 
 .search-grid {
@@ -21,13 +24,6 @@
 
 .search-grid .movie-card {
   width: 100%;
-}
-
-.search-empty {
-  color: var(--text-muted);
-  font-size: 1rem;
-  text-align: center;
-  margin-top: 100px;
 }
 
 .search-load-more {

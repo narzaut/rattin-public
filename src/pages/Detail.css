@@ -72,22 +72,29 @@
 }
 
 .detail-info h1 {
-  font-family: var(--font-display);
-  font-size: 2.4rem;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  margin-bottom: 14px;
-  line-height: 1.15;
+  margin: 4px 0 16px;
+}
+
+.detail-info .app-eyebrow {
+  display: block;
+}
+
+.detail-info::after {
+  content: "";
+  display: block;
+  width: 64px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .detail-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 14px;
-  font-weight: 400;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .detail-rating {
@@ -226,53 +233,6 @@
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Error box */
-.detail-error-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 18px;
-  padding: 16px 20px;
-  background: rgba(251, 113, 133, 0.06);
-  border: 1px solid rgba(251, 113, 133, 0.15);
-  border-radius: var(--radius-sm);
-  max-width: 520px;
-}
-
-.detail-error-box svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-}
-
-.detail-error-title {
-  font-weight: 600;
-  font-size: 0.88rem;
-  margin-bottom: 4px;
-}
-
-.detail-error-sub {
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  line-height: 1.5;
-}
-
-.detail-error-retry {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 7px 16px;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xs);
-  transition: all var(--transition);
-  align-self: center;
-}
-
-.detail-error-retry:hover {
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-
 /* ── Seasons / Episodes ── */
 .detail-seasons {
   margin-top: 40px;
@@ -287,9 +247,12 @@
 }
 
 .detail-season-header h3 {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
 }
 
 .detail-season-header select {
@@ -578,26 +541,22 @@
   gap: 16px;
 }
 
-.reviews-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.reviews-header h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
+.reviews-section .section-header {
+  margin-bottom: 16px;
 }
 
 .reviews-imdb-link {
-  font-size: 0.85rem;
-  color: var(--accent-bright);
+  font-size: 12px;
+  color: var(--text-secondary);
   font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
   transition: color var(--transition);
+  margin-left: auto;
 }
 
 .reviews-imdb-link:hover {
-  color: var(--text-primary);
+  color: var(--accent-bright);
 }
 
 .reviews-list {
@@ -778,11 +737,8 @@
   margin-top: 48px;
 }
 
-.cast-header {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
+.cast-section .section-header {
+  margin-bottom: 18px;
 }
 
 .cast-grid {

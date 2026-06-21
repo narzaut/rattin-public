@@ -35,6 +35,7 @@ set(SOURCES
     main.cpp
     mpvobject.cpp
     mpvbridge.cpp
+    shutdownhandler.h
     resources.qrc
 )
 

@@ -188,11 +188,9 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
   }, []);
 
   const startStream = useCallback((infoHash: string | number, fileIndex: string | number, title: string, tags: string[], debridStreamKey?: string) => {
-    if (active?.infoHash === String(infoHash) && String(active?.fileIndex) === String(fileIndex)) {
-      return;
-    }
+    const sameAsCurrent = active?.infoHash === String(infoHash) && String(active?.fileIndex) === String(fileIndex);
     // Save position of the current stream before switching (mirrors stopStream behavior)
-    if (active) {
+    if (active && !sameAsCurrent) {
       const t = effectiveTimeRef.current?.time || 0;
       if (t > 0) sessionStorage.setItem(playbackKey(active.infoHash, active.fileIndex), String(t));
     }
