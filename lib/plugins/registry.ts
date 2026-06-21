@@ -142,6 +142,7 @@ export class PluginRegistryImpl implements PluginRegistry {
       id: health?.id || "local",
       name: health?.name || "Local Plugin",
       version: health?.version || "0.0.0",
+      sourceUrl: filePath,
     };
     this.saveMeta();
     // Re-spawn as the real plugin
