@@ -97,7 +97,7 @@ export async function autoPlay(title: string, year: number | undefined, type: st
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function searchStreams(title: string, year: number | undefined, type: string, season?: number, episode?: number, imdbId?: string): Promise<any[]> {
+export async function searchStreams(title: string, year: number | undefined, type: string, season?: number, episode?: number, imdbId?: string): Promise<{ results: any[]; warning?: string }> {
   const res = await fetch("/api/search-streams", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -105,7 +105,7 @@ export async function searchStreams(title: string, year: number | undefined, typ
   });
   if (res.status === 503) throw new Error("no_source");
   const data = await res.json();
-  return data.results || [];
+  return { results: data.results || [], warning: data.warning };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

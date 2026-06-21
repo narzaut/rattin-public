@@ -89,7 +89,7 @@ export default function Home() {
       (window as any).__rattinCancelPlay = false;
 
       // Search for streams via the plugin
-      const results = await searchStreams(
+      const { results } = await searchStreams(
         item.title,
         item.year,
         item.mediaType,
