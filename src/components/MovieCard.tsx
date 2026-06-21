@@ -8,9 +8,10 @@ import "./MovieCard.css";
 interface MovieCardProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: any;
+  warning?: string;
 }
 
-export default memo(function MovieCard({ item }: MovieCardProps) {
+export default memo(function MovieCard({ item, warning }: MovieCardProps) {
   const navigate = useNavigate();
   const type = item.media_type || (item.first_air_date ? "tv" : "movie");
   const title = item.title || item.name;
@@ -34,6 +35,7 @@ export default memo(function MovieCard({ item }: MovieCardProps) {
       <div className="movie-card-info">
         <span className="movie-card-title">{title}</span>
         {year && <span className="movie-card-year">{year}</span>}
+        {warning && <span className="movie-card-warning">{warning}</span>}
       </div>
     </div>
   );

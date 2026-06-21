@@ -102,6 +102,20 @@
   font-weight: 400;
 }
 
+.movie-card-warning {
+  font-size: 0.62rem;
+  color: #b8952e;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(184, 149, 46, 0.08);
+  border: 1px solid rgba(184, 149, 46, 0.15);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 768px) {
   .movie-card {
     width: 140px;
