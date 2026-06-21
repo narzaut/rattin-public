@@ -81,7 +81,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   } | null>(null);
   const [pluginInstalling, setPluginInstalling] = useState(false);
   const [pluginError, setPluginError] = useState("");
-  const [sourceUrlInput, setSourceUrlInput] = useState("https://rattin-plugins.pages.dev/plugins/rattin-sources/1.0.0.js");
+  const [availablePlugin, setAvailablePlugin] = useState<{
+    downloadUrl: string; sha256: string; version: string; apiVersion: number;
+  } | null>(null);
   const [devMode, setDevMode] = useState(false);
 
   // ── Storage state ──
@@ -104,7 +106,23 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     loadDataCounts();
     loadPluginStatus();
     loadSettings();
+    loadAvailablePlugin();
   }, []);
+
+  // ── Loaders ──
+
+  async function loadAvailablePlugin() {
+    try {
+      const index = await getPluginIndex();
+      // Pick the best compatible plugin: apiVersion 1, highest version
+      const compatible = index
+        .filter((e: { apiVersion?: number }) => (e.apiVersion ?? 1) === 1)
+        .sort((a: { version: string }, b: { version: string }) => b.version.localeCompare(a.version));
+      if (compatible.length > 0) {
+        setAvailablePlugin(compatible[0]);
+      }
+    } catch {}
+  }
 
   // ── Loaders ──
 
@@ -160,11 +178,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   // ── Plugin handlers ──
 
   async function handleInstallPlugin() {
-    if (!sourceUrlInput.trim()) return;
+    if (!availablePlugin) return;
     setPluginInstalling(true);
     setPluginError("");
     try {
-      await installPluginFromUrl(sourceUrlInput.trim());
+      await installPluginFromUrl(availablePlugin.downloadUrl);
       await loadPluginStatus();
     } catch (err) {
       setPluginError((err as Error).message || "Installation failed");
@@ -272,47 +290,50 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             <span className="settings-badge settings-badge-red">Stopped</span>
           )}
         </div>
-        <p className="settings-desc">
-          Content source plugins provide search results. Enter the URL of a signed plugin to install.
-        </p>
-        <div className="settings-form">
-          <input className="settings-input" type="text" placeholder="Plugin URL..."
-            value={sourceUrlInput} onChange={(e) => setSourceUrlInput(e.target.value)}
-            autoComplete="off" />
-          <button className="settings-btn-primary" onClick={handleInstallPlugin}
-            disabled={pluginInstalling || !sourceUrlInput.trim()}>
-            {pluginInstalling ? "Installing..." : pluginStatus?.installed ? "Reinstall" : "Install"}
-          </button>
-        </div>
-        {pluginStatus?.installed && (
-          <div className="settings-card" style={{ marginTop: 12 }}>
-            <div className="settings-info-row">
-              <span className="settings-info-label">Plugin</span>
-              <span className="settings-info-value">{pluginStatus.plugin?.name}</span>
+        {!pluginStatus?.installed ? (
+          <>
+            <p className="settings-desc">
+              Install a community-made and verified content source plugin to enable search and play.
+            </p>
+            {availablePlugin ? (
+              <button className="settings-btn-primary" onClick={handleInstallPlugin} disabled={pluginInstalling}>
+                {pluginInstalling ? "Installing..." : "Install Content Source"}
+              </button>
+            ) : (
+              <p className="settings-status">No compatible content sources available.</p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="settings-desc">
+              Content source plugin is installed and provides search results.
+            </p>
+            <div className="settings-card">
+              <div className="settings-info-row">
+                <span className="settings-info-label">Plugin</span>
+                <span className="settings-info-value">{pluginStatus.plugin?.name}</span>
+              </div>
+              <div className="settings-info-row">
+                <span className="settings-info-label">Version</span>
+                <span className="settings-info-value">{pluginStatus.plugin?.version}</span>
+              </div>
+              {availablePlugin && availablePlugin.version !== pluginStatus.plugin?.version && (
+                <div className="settings-info-row">
+                  <span className="settings-info-label">Update</span>
+                  <span className="settings-info-value">
+                    v{availablePlugin.version} available{" "}
+                    <button className="settings-btn-inline" onClick={handleInstallPlugin} disabled={pluginInstalling}>
+                      {pluginInstalling ? "Updating..." : "Update"}
+                    </button>
+                  </span>
+                </div>
+              )}
+              <div className="settings-row-actions">
+                <button className="settings-btn-secondary" onClick={handleReloadPlugin}>Restart</button>
+                <button className="settings-btn-danger" onClick={handleUninstallPlugin}>Uninstall</button>
+              </div>
             </div>
-            <div className="settings-info-row">
-              <span className="settings-info-label">Version</span>
-              <span className="settings-info-value">{pluginStatus.plugin?.version}</span>
-            </div>
-            <div className="settings-info-row">
-              <span className="settings-info-label">Source</span>
-              <span className="settings-info-value settings-info-url">{pluginStatus.sourceUrl}</span>
-            </div>
-            <div className="settings-row-actions">
-              <button className="settings-btn-secondary" onClick={handleReloadPlugin}>Restart</button>
-              <button className="settings-btn-danger" onClick={handleUninstallPlugin}>Uninstall</button>
-            </div>
-          </div>
-        )}
-        <div className="settings-divider" />
-        <label className="settings-toggle-row">
-          <span className="settings-info-label">Developer mode</span>
-          <input type="checkbox" checked={devMode} onChange={(e) => setDevMode(e.target.checked)} />
-        </label>
-        {devMode && (
-          <p className="settings-warning">
-            Allows unsigned plugins from local files. Use at your own risk.
-          </p>
+          </>
         )}
         {pluginError && <p className="settings-error">{pluginError}</p>}
       </div>
