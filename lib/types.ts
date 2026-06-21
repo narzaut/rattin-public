@@ -66,21 +66,7 @@ export interface TorrentClient {
   destroy(callback?: (err?: Error) => void): void;
 }
 
-// ── Seek Index ────────────────────────────────────────────────────────
-
-export interface SeekEntry {
-  time: number;
-  offset: number;
-}
-
 // ── Transcode ─────────────────────────────────────────────────────────
-
-export interface TranscodeJob {
-  outputPath: string;
-  done: boolean;
-  error: string | null;
-  process: ChildProcess | null;
-}
 
 export interface ProbeResult {
   valid: boolean;
@@ -296,24 +282,6 @@ export interface LearnedOffsetSample {
   episode: number;
 }
 
-export interface SubTrack {
-  index: number;
-  label: string;
-  language?: string;
-}
-
-export interface AudioTrack {
-  index: number;
-  label: string;
-  language?: string;
-}
-
-export interface ActiveStream {
-  infoHash: string;
-  fileIndex: number;
-  name: string;
-}
-
 // ── Torrent Search / Scoring ──────────────────────────────────────────
 
 export interface TorrentResult {
@@ -377,8 +345,6 @@ export interface ServerContext {
   DOWNLOAD_PATH: string;
   TRANSCODE_PATH: string;
   durationCache: Map<string, number>;
-  seekIndexCache: Map<string, SeekEntry[]>;
-  seekIndexPending: Set<string>;
   activeFiles: Map<string, Set<number>>;
   completedFiles: Map<string, CompletedFile>;
   streamTracker: Map<string, StreamEntry>;

@@ -174,14 +174,6 @@ export function mpvPlay(url: string): void {
   window.mpvBridge?.play(url);
 }
 
-export function mpvPause(): void {
-  window.mpvBridge?.pause();
-}
-
-export function mpvResume(): void {
-  window.mpvBridge?.resume();
-}
-
 export function mpvSeek(seconds: number): void {
   window.mpvBridge?.seek(seconds);
 }

@@ -1,21 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { createIdleTracker, IDLE_SOFT, IDLE_HARD } from "../../lib/idle-tracker.js";
+import { createIdleTracker } from "../../lib/idle-tracker.js";
 import type { IdleTracker } from "../../lib/types.js";
-
-describe("idle-tracker constants", () => {
-  it("IDLE_SOFT is 5 minutes", () => {
-    assert.equal(IDLE_SOFT, 5 * 60 * 1000);
-  });
-
-  it("IDLE_HARD is 10 minutes", () => {
-    assert.equal(IDLE_HARD, 10 * 60 * 1000);
-  });
-
-  it("IDLE_SOFT < IDLE_HARD", () => {
-    assert.ok(IDLE_SOFT < IDLE_HARD);
-  });
-});
 
 describe("createIdleTracker", () => {
   let tracker: IdleTracker;

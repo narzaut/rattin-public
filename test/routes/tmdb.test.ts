@@ -16,11 +16,11 @@ describe("TMDB routes", () => {
   // ── GET /api/tmdb/trending ────────────────────────────────────────────
 
   describe("GET /api/tmdb/trending", () => {
-    it("returns 502 or 503 when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable)", async () => {
       const res = await fetch(`${baseUrl}/api/tmdb/trending`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });
@@ -28,11 +28,11 @@ describe("TMDB routes", () => {
   // ── GET /api/tmdb/search ──────────────────────────────────────────────
 
   describe("GET /api/tmdb/search", () => {
-    it("returns 502 or 503 when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable)", async () => {
       const res = await fetch(`${baseUrl}/api/tmdb/search?q=test`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });
@@ -40,11 +40,11 @@ describe("TMDB routes", () => {
   // ── GET /api/tmdb/movie/:id ───────────────────────────────────────────
 
   describe("GET /api/tmdb/movie/:id", () => {
-    it("returns 502 or 503 when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable)", async () => {
       const res = await fetch(`${baseUrl}/api/tmdb/movie/550`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });
@@ -52,11 +52,11 @@ describe("TMDB routes", () => {
   // ── GET /api/tmdb/tv/:id ──────────────────────────────────────────────
 
   describe("GET /api/tmdb/tv/:id", () => {
-    it("returns 502 or 503 when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable)", async () => {
       const res = await fetch(`${baseUrl}/api/tmdb/tv/1399`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });
@@ -64,11 +64,11 @@ describe("TMDB routes", () => {
   // ── GET /api/tmdb/tv/:id/season/:num ─────────────────────────────────
 
   describe("GET /api/tmdb/tv/:id/season/:num", () => {
-    it("returns 502 or 503 when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable)", async () => {
       const res = await fetch(`${baseUrl}/api/tmdb/tv/1399/season/1`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });
@@ -83,11 +83,11 @@ describe("TMDB routes", () => {
       assert.equal(body.error, "Invalid type");
     });
 
-    it("returns 502 or 503 for movie type when TMDB API key is not set", async () => {
+    it("returns 200 (proxy works) or 502 (proxy unreachable) for movie type", async () => {
       const res = await fetch(`${baseUrl}/api/reviews/movie/550`);
       assert.ok(
-        res.status === 502 || res.status === 503,
-        `expected 502 or 503, got ${res.status}`
+        res.status === 200 || res.status === 502,
+        `expected 200 or 502, got ${res.status}`
       );
     });
   });

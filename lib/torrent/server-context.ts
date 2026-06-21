@@ -14,7 +14,7 @@ import type { SavedItem } from "../storage/saved-list.js";
 import type { Request, Response, NextFunction } from "express";
 import type {
   CompletedFile, StreamEntry, ActiveTranscode,
-  AvailEntry, IntroEntry, ProbeResult, RCSession, SeekEntry,
+  AvailEntry, IntroEntry, ProbeResult, RCSession,
   Torrent, TorrentFile, TorrentClient, LogLevel, ServerContext,
 } from "../types.js";
 import type { PluginRegistry } from "../plugins/types.js";
@@ -44,8 +44,6 @@ export function createContext(overrides: CreateContextOverrides = {}): ServerCon
   const TRANSCODE_PATH = transcodeDir();
 
   const durationCache = new Map<string, number>(); // "infoHash:fileIndex" -> seconds
-  const seekIndexCache = new BoundedMap<SeekEntry[]>(20); // "infoHash:fileIndex" -> [{ time, offset }, ...]
-  const seekIndexPending = new Set<string>(); // jobKeys currently being indexed (prevents duplicate attempts)
   const activeFiles = new Map<string, Set<number>>(); // "infoHash" -> Set of fileIndex
   const completedFiles = new Map<string, CompletedFile>(); // "infoHash:fileIndex" -> { path, size, name }
   const streamTracker = new Map<string, StreamEntry>(); // infoHash -> { count, idleTimer }
@@ -54,8 +52,6 @@ export function createContext(overrides: CreateContextOverrides = {}): ServerCon
   const AVAIL_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
   registerCache("durationCache", durationCache as Map<string, unknown>, "hash:index");
-  registerCache("seekIndexCache", seekIndexCache as unknown as Map<string, unknown>, "hash:index");
-  registerCache("seekIndexPending", seekIndexPending, "hash:index");
   registerCache("activeFiles", activeFiles as Map<string, unknown>, "hash");
 
   const introCache = new BoundedMap<IntroEntry>(100); // "tmdbId:season" -> { intro_start, intro_end, source }
@@ -177,7 +173,7 @@ export function createContext(overrides: CreateContextOverrides = {}): ServerCon
     get client() { return client; },
     initClient,
     DOWNLOAD_PATH, TRANSCODE_PATH,
-    durationCache, seekIndexCache, seekIndexPending,
+    durationCache,
     activeFiles, completedFiles, streamTracker, activeTranscodes,
     availabilityCache, AVAIL_TTL, introCache, probeCache, pcAuthToken,
     rcSessions, watchHistory, savedList,
