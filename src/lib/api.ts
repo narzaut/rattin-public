@@ -232,7 +232,7 @@ export async function setDebridConfig(apiKey: string, provider = "realdebrid", m
   if (!res.ok) throw new Error("config_failed");
 }
 
-export async function setDebridMode(mode: "always" | "cached"): Promise<void> {
+export async function setDebridMode(mode: "on" | "off"): Promise<void> {
   const res = await fetch("/api/debrid/mode", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

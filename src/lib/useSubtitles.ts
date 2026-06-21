@@ -61,7 +61,6 @@ interface UseSubtitlesReturn {
   reloadActiveSub: (seekOffset: number) => void;
   addCustomSubtitle: (file: File) => Promise<void>;
   shiftVtt: (vttText: string, offsetSeconds: number) => string;
-  LANG_MAP: Record<string, string>;
 }
 
 /** Extract episode identifiers (e.g. "S01E03", "E03", "03") from a path or filename.
@@ -322,6 +321,6 @@ export function useSubtitles(deps: UseSubtitlesDeps): UseSubtitlesReturn {
   return {
     subs, activeSub, setSubs, setActiveSub,
     switchSubtitle, reloadActiveSub, addCustomSubtitle,
-    shiftVtt, LANG_MAP,
+    shiftVtt,
   };
 }

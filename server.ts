@@ -42,8 +42,6 @@ interface AppContext {
   app: ReturnType<typeof express>;
   client: ServerContext["client"];
   durationCache: ServerContext["durationCache"];
-  seekIndexCache: ServerContext["seekIndexCache"];
-  seekIndexPending: ServerContext["seekIndexPending"];
   activeFiles: ServerContext["activeFiles"];
   completedFiles: ServerContext["completedFiles"];
   streamTracker: ServerContext["streamTracker"];
@@ -72,7 +70,7 @@ export function createApp(overrides: CreateAppOverrides = {}): AppContext {
   }
 
   const {
-    durationCache, seekIndexCache, seekIndexPending,
+    durationCache,
     activeFiles, completedFiles, streamTracker, activeTranscodes,
     availabilityCache, AVAIL_TTL, introCache, probeCache, pcAuthToken,
     log, cleanupTorrentCaches, rcSessions,
@@ -112,8 +110,6 @@ const idleTracker = createIdleTracker({
   onHardIdle() {
     // Aggressive cleanup — but respect active streams
     durationCache.clear();
-    seekIndexCache.clear();
-    seekIndexPending.clear();
     activeFiles.clear();
     availabilityCache.clear();
     tmdbCache.clear();
@@ -209,7 +205,7 @@ app.get("/{*splat}", (_req: Request, res: Response) => {
 
   return {
     app, get client() { return ctx.client; }, initClient: ctx.initClient,
-    durationCache, seekIndexCache, seekIndexPending,
+    durationCache,
     activeFiles, completedFiles, streamTracker, activeTranscodes, availabilityCache,
     probeCache, introCache, rcSessions,
     watchHistory: ctx.watchHistory, savedList: ctx.savedList,

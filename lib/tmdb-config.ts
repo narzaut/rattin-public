@@ -25,11 +25,6 @@ export function deleteTmdbKey(): void {
   try { unlinkSync(CONFIG_PATH); } catch {}
 }
 
-export function tmdbConfigured(): boolean {
-  // TMDB is always available — either via the user's own key or the built-in proxy.
-  return true;
-}
-
 export function hasUserTmdbKey(): boolean {
   return !!loadTmdbKey();
 }

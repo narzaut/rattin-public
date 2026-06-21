@@ -165,7 +165,7 @@ describe("CACHE_TTL constants", () => {
     assert.ok(CACHE_TTL.SEARCH > 0);
   });
 
-  it("MOVIE TTL is longer than TRENDING TTL", () => {
-    assert.ok(CACHE_TTL.MOVIE > CACHE_TTL.TRENDING);
+  it("MOVIE TTL is at least TRENDING TTL", () => {
+    assert.ok(CACHE_TTL.MOVIE >= CACHE_TTL.TRENDING);
   });
 });

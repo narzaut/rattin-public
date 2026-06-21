@@ -9,8 +9,8 @@
 import type { Request, Response, NextFunction } from "express";
 import type { IdleTrackerOpts, IdleTracker } from "./types.js";
 
-export const IDLE_SOFT: number = 5 * 60 * 1000;   // 5 minutes
-export const IDLE_HARD: number = 10 * 60 * 1000;  // 10 minutes
+const IDLE_SOFT: number = 5 * 60 * 1000;   // 5 minutes
+const IDLE_HARD: number = 10 * 60 * 1000;  // 10 minutes
 const CHECK_INTERVAL = 60 * 1000;         // check every 1 minute
 
 export function createIdleTracker({ onSoftIdle, onHardIdle, logFn }: IdleTrackerOpts = {}): IdleTracker {
