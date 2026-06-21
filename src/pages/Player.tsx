@@ -92,7 +92,7 @@ export default function Player() {
     setSources(state?.sources || []);
     if (state?.sources?.length > 0) return;
     searchStreams(state.title, state.year, state.type, state.season, state.episode, state.imdbId)
-      .then((results) => { if (results.length > 0) setSources(results); })
+      .then(({ results }) => { if (results.length > 0) setSources(results); })
       .catch(() => {});
   }, [infoHash]);
 
@@ -331,7 +331,7 @@ export default function Player() {
               } catch { /* autoPlay returns 404 if no reuse — fall through to search */ }
 
               // No reuse — search via the plugin
-              const results = await searchStreams(baseTitle, year, "tv", next.season, next.episode, ep.imdbId);
+              const { results } = await searchStreams(baseTitle, year, "tv", next.season, next.episode, ep.imdbId);
               if (!results || results.length === 0) {
                 return { infoHash: "", fileIndex: 0, magnet: "" };
               }
@@ -533,7 +533,7 @@ export default function Player() {
       const searchPromise = searchStreams(title, year, "tv", nextSeason, nextEpisode, imdbId);
       const seasonPromise = fetchSeason(state.tmdbId, nextSeason).catch(() => null);
       const episodeGroupsPromise = state.hasEpisodeGroups ? fetchEpisodeGroups(state.tmdbId).catch(() => null) : Promise.resolve(null);
-      const [results, seasonData, episodeGroups] = await Promise.all([searchPromise, seasonPromise, episodeGroupsPromise]);
+      const [{ results }, seasonData, episodeGroups] = await Promise.all([searchPromise, seasonPromise, episodeGroupsPromise]);
 
       if (!results || results.length === 0) {
         mpvSetLoading(false);

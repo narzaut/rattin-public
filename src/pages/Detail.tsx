@@ -216,7 +216,8 @@ export default function Detail() {
       const title = data.title || data.name;
       const year = parseInt((data.release_date || data.first_air_date || "").slice(0, 4)) || undefined;
       const imdbId = data.imdb_id || data.external_ids?.imdb_id || undefined;
-      const results = await searchStreams(title, year, type, season, episode, imdbId);
+      const { results, warning } = await searchStreams(title, year, type, season, episode, imdbId);
+      if (warning) setAvailabilityWarning(warning);
       setStreams(results);
     } catch (err: unknown) {
       if ((err as Error).message === "no_source") {
@@ -348,7 +349,8 @@ export default function Detail() {
       (window as any).__rattinCancelPlay = false;
 
       // Search for streams via the plugin
-      const results = await searchStreams(title, year, type, season, episode, imdbId);
+      const { results, warning } = await searchStreams(title, year, type, season, episode, imdbId);
+      if (warning) setAvailabilityWarning(warning);
       if ((window as any).__rattinCancelPlay) { (window as any).__rattinCancelPlay = false; setPlayState(null); return; }
       if (!results || results.length === 0) {
         throw new Error("not_found");

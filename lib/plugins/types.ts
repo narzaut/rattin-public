@@ -24,6 +24,7 @@ export interface SearchResult {
   subLanguages?: string[];
   multiAudio?: boolean;
   foreignOnly?: boolean;
+  qualityHint?: string;  // arbitrary plugin tag — app passes through uninterpreted
 }
 
 export interface PluginIndexEntry {

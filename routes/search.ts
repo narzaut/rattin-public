@@ -19,6 +19,7 @@ interface SearchResult {
   subLanguages?: string[];
   multiAudio?: boolean;
   foreignOnly?: boolean;
+  qualityHint?: string;
 }
 
 export default function searchRoutes(app: Express, ctx: ServerContext): void {
@@ -158,11 +159,20 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
           subLanguages: r.subLanguages || [],
           multiAudio: r.multiAudio || false,
           foreignOnly: r.foreignOnly || false,
+          qualityHint: r.qualityHint,
         };
       })
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score || b.seeders - a.seeders)
       .slice(0, 50);
+
+    // Plugin provides qualityHint on each result — if all scored results are
+    // low quality, surface a warning to the frontend. The app doesn't interpret
+    // the value; it just passes through whatever the plugin set.
+    const warning =
+      scored.length > 0 && scored.every((r) => r.qualityHint === "low")
+        ? "Limited quality sources available"
+        : undefined;
 
     // Check debrid cache availability if configured
     const debrid = getDebridProvider();
@@ -180,7 +190,7 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ results: scored });
+    res.json({ results: scored, warning });
   } catch (err) {
     log("err", "Search streams failed", { error: (err as Error).message });
     res.json({ results: [] });
