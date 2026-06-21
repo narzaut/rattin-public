@@ -6,9 +6,9 @@
    ────────────────────────────────────────────────────────────────── */
 
 .settings-modal {
-  width: 760px;
-  height: 600px;
-  max-height: 86vh;
+  width: min(950px, 90vw);
+  height: min(660px, 85vh);
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, #11111a 0%, var(--bg-surface) 100%);
@@ -210,7 +210,7 @@
   flex-direction: column;
   padding: 28px 32px 36px;
   gap: 26px;
-  max-width: 560px;
+  max-width: none;
 }
 
 /* ── Tab title block ── */
@@ -985,6 +985,13 @@
   color: var(--text-secondary);
   line-height: 1.45;
   max-width: 460px;
+}
+
+.plugin-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .plugin-row-action {
