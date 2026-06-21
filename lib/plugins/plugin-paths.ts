@@ -7,7 +7,7 @@ export function pluginDir(): string {
 }
 
 export function pluginFilePath(): string {
-  return path.join(pluginDir(), "rattin-sources.js");
+  return path.join(pluginDir(), "plugin.js");
 }
 
 export function pluginMetaPath(): string {

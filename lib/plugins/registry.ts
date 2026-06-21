@@ -44,7 +44,7 @@ export class PluginRegistryImpl implements PluginRegistry {
   constructor(deps: PluginRegistryDeps) {
     this.deps = deps;
     this.dir = deps.pluginDir || defaultPluginDir();
-    this.filePath = path.join(this.dir, "rattin-sources.js");
+    this.filePath = path.join(this.dir, "plugin.js");
     this.metaPath = path.join(this.dir, "plugin-meta.json");
     this.allowUnsigned = deps.allowUnsigned ?? false;
     this.restartDelayOverride = deps.restartDelayOverride;
@@ -131,7 +131,7 @@ export class PluginRegistryImpl implements PluginRegistry {
     this.deps.log("info", "Installing plugin from file (dev mode)", { filePath });
     const content = readFileSync(filePath);
     // Try to get health info from the plugin to extract its name/version
-    const tempPath = path.join(this.dir, "rattin-sources.js");
+    const tempPath = path.join(this.dir, "plugin.js");
     mkdirSync(this.dir, { recursive: true });
     writeFileSync(tempPath, content);
     // Spawn temporarily to get health info
@@ -379,7 +379,7 @@ export class PluginRegistryImpl implements PluginRegistry {
 
   /**
    * Download the .sig companion file for a plugin.
-   * The CDN must serve both `rattin-sources.js` and `rattin-sources.js.sig`
+   * The CDN must serve both the plugin `.js` and its `.js.sig` signature file
    * at the same path prefix. The build pipeline in the private plugin repo
    * uploads both files. If the .sig file is missing (e.g. unsigned plugin
    * in dev mode), returns null.
