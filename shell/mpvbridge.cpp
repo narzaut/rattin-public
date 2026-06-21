@@ -26,6 +26,7 @@ void MpvBridge::play(const QString &url)
     }
     fprintf(stderr, "[bridge] loadfile: %s (wasPlaying=%d)\n", url.toUtf8().constData(), m_isPlaying);
     m_loadPending = true;  // Suppress stale EOF until new file produces time updates
+    m_needsStateEmit = true;  // Force-emit duration/core-idle on first time-pos
     m_pendingSubUrl.clear();  // Clear any stale queued subtitle from previous session
     m_pendingSubTitle.clear();
     m_mpv->setProperty("pause", false);  // Ensure mpv is unpaused before loading
@@ -152,13 +153,39 @@ void MpvBridge::onMpvEvent(const QString &eventName, const QVariant &value)
             m_pendingSubTitle.clear();
             emit externalSubtitleLoaded();
         }
+        // When replaying the same file, mpv's property observers may not fire
+        // for duration/core-idle because the values didn't change. Force-query
+        // them on the first time-pos to guarantee React receives them.
+        if (m_needsStateEmit) {
+            m_needsStateEmit = false;
+            QVariant dur = m_mpv->getProperty("duration");
+            if (dur.canConvert<double>() && dur.toDouble() > 0) {
+                fprintf(stderr, "[bridge] force-emit duration: %.1f\n", dur.toDouble());
+                emit durationChanged(dur.toDouble());
+            }
+            QVariant idle = m_mpv->getProperty("core-idle");
+            if (idle.canConvert<bool>()) {
+                fprintf(stderr, "[bridge] force-emit core-idle: %d\n", idle.toBool());
+                emit coreIdleChanged(idle.toBool());
+            }
+        }
         emit timeChanged(value.toDouble());
     } else if (eventName == "duration" && value.canConvert<double>()) {
+        m_needsStateEmit = false;  // Observer fired — no need to force-query
         emit durationChanged(value.toDouble());
-    } else if (eventName == "pause" && value.canConvert<bool>()) {
-        emit pauseChanged(value.toBool());
     } else if (eventName == "core-idle" && value.canConvert<bool>()) {
         emit coreIdleChanged(value.toBool());
+    } else if (eventName == "pause" && value.canConvert<bool>()) {
+        emit pauseChanged(value.toBool());
+    } else if (eventName == "load-error") {
+        // loadfile failed (HTTP error, network timeout, file not found).
+        // Do NOT suppress even though m_loadPending is true — this is a real
+        // failure, not a stale EOF from the previous file. Clear pending state
+        // and emit eofReached so React can recover (go back, show error, retry).
+        m_loadPending = false;
+        m_needsStateEmit = false;
+        fprintf(stderr, "[bridge] load error: mpv error code %d\n", value.toInt());
+        emit eofReached();
     } else if (eventName == "eof") {
         if (m_loadPending) {
             // Stale EOF from the previous file during a loadfile transition — suppress it.

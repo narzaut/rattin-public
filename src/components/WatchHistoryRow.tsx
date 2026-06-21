@@ -46,7 +46,9 @@ export default function WatchHistoryRow({ title, fetchFn, showProgress = false, 
 
   return (
     <div className="content-row">
-      <h2 className="content-row-title">{title}</h2>
+      <div className="content-row-header">
+        <h2 className="content-row-title">{title}</h2>
+      </div>
       <div className="content-row-wrapper">
         <button className="content-row-arrow left" onClick={() => scroll(-1)}>&lsaquo;</button>
         <div className="content-row-scroll" ref={scrollRef}>

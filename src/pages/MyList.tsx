@@ -45,17 +45,20 @@ export default function MyList() {
 
   return (
     <div className="my-list-page">
-      <button className="back-btn" onClick={() => navigate(-1)}>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <button className="app-back-link" onClick={() => navigate(-1)}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
         </svg>
         Back
       </button>
       <div className="my-list-header">
-        <h1>My List</h1>
-        {items !== null && (
-          <span className="my-list-count">{items.length} {items.length === 1 ? "title" : "titles"}</span>
-        )}
+        <div className="my-list-header-eyebrow">
+          <span className="app-eyebrow">Saved</span>
+          {items !== null && (
+            <span className="app-chip">{items.length} {items.length === 1 ? "title" : "titles"}</span>
+          )}
+        </div>
+        <h1 className="page-title">My List</h1>
       </div>
 
       {items === null ? (
@@ -67,12 +70,14 @@ export default function MyList() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="my-list-empty">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
-          </svg>
-          <p>Your list is empty</p>
-          <span>Save movies and shows to watch later</span>
+        <div className="app-empty">
+          <div className="app-empty-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
+            </svg>
+          </div>
+          <h3 className="app-empty-title">Your list is empty</h3>
+          <p className="app-empty-sub">Save movies and shows to watch later — they'll show up here, ready when you are.</p>
           <button className="my-list-browse-btn" onClick={() => navigate("/")}>
             Browse
           </button>

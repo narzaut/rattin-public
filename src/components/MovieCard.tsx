@@ -27,7 +27,7 @@ export default memo(function MovieCard({ item }: MovieCardProps) {
         )}
         {item.vote_average > 0 && (
           <span className="movie-card-rating" style={{ color: ratingColor(item.vote_average) }}>
-            ★ {item.vote_average.toFixed(1)}
+            {item.vote_average.toFixed(1)}
           </span>
         )}
       </div>

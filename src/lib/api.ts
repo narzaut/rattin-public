@@ -533,33 +533,37 @@ export async function fetchPrefetchReady(infoHash: string, fileIndex: number): P
 
 // ── Plugin API ───────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPluginStatus(): Promise<any> {
+export interface PluginIndexEntry {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  downloadUrl: string;
+  sha256: string;
+  version: string;
+  apiVersion: number;
+}
+
+export interface PluginStatus {
+  installed: boolean;
+  running: boolean;
+  plugin: { id: string; name: string; version: string } | null;
+  sourceUrl: string | null;
+}
+
+export async function getPluginStatus(): Promise<PluginStatus> {
   return get("/api/plugins/status");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPluginIndex(): Promise<any[]> {
+export async function getPluginIndex(): Promise<PluginIndexEntry[]> {
   return get("/api/plugins/index");
 }
 
-export async function installPlugin(url: string, entry: {
-  id: string; name: string; description: string; author: string;
-  downloadUrl: string; sha256: string; version: string; apiVersion: number;
-}): Promise<void> {
-  const res = await fetch("/api/plugins/install", {
+export async function installPluginById(id: string): Promise<void> {
+  const res = await fetch("/api/plugins/install-by-id", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, entry }),
-  });
-  if (!res.ok) throw new Error("install_failed");
-}
-
-export async function installPluginFromUrl(url: string): Promise<void> {
-  const res = await fetch("/api/plugins/install-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ id }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

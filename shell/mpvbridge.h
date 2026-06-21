@@ -48,6 +48,7 @@ private:
     MpvObject *m_mpv;
     bool m_isPlaying = false;
     bool m_loadPending = false;  // true after play() until first time-pos arrives
+    bool m_needsStateEmit = false;  // true after play() until duration/core-idle confirmed
     QString m_pendingSubUrl;
     QString m_pendingSubTitle;
 };

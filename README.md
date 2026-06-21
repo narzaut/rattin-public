@@ -20,27 +20,26 @@
 
 ## Why Rattin
 
-Most tools in this space make you choose. Torrent clients that stream but can't browse. Media servers that browse but can't stream from torrents without bolting on five extra tools. Apps that do both but choke on MKV or HEVC unless you pay for transcoding. And none of them touch privacy — you're on your own for that.
-
-Rattin is a single desktop app that does all of it — browse TMDB, click play, watch — with a plugin system for content sources, optional debrid integration, and per-app VPN isolation built in.
+Rattin is a single desktop app for browsing, clicking, and watching — without waiting, without
+accounts, without telemetry. It plays every format through libmpv, keeps your history local,
+and stays out of your way.
 
 🎬 Every codec, every container, every format — played natively through libmpv with hardware decoding<br>
 ⏩ Smart seeking in incomplete files — jump anywhere, even before it's downloaded<br>
 🍿 One-tap binge mode — auto-skip intros and credits, auto-advance to the next episode, and keep your audio/subtitle picks across a whole show (AniSkip + IntroDB, plus credits learned from your own watching)<br>
-🔍 TMDB discovery — trending, genres, search, trailers, cast, one-click play<br>
+🔍 TMDB discovery — trending, genres, search, trailers, cast<br>
 📱 Phone remote via QR scan — no app install, just point your camera<br>
 🔒 No account, no database, no cloud, no telemetry — nothing leaves your machine<br>
-⚡ Optional debrid (Real-Debrid / TorBox) — instant streaming via HTTPS, full seeking, no swarm exposure<br>
+⚡ Optional private cache — instant playback, full seeking, no peer exposure<br>
 🛡️ Optional per-app VPN *(WIP)* — WireGuard network isolation with built-in kill switch
 
 ### :mag: Discovery
 
 - **Full movie & TV browser** - Trending, new releases, top rated, genres, cast, trailers
-- **Plugin system** - Install community content sources for one-click play. Search, score, and stream from any source.
-- **One-click play** - Auto-selects the best available torrent and starts streaming
+- **Signed add-ons** - Install add-ons from the Rattin registry to extend what Rattin can do.
 - **Watch history** - Tracks where you left off across movies and TV episodes, resumes automatically
 - **Saved list** - Save movies and shows for later from any detail page
-- **Quality at a glance** - Resolution, codec, audio format, and source parsed from every result
+- **Quality at a glance** - Resolution, codec, and audio format parsed from every result
 
 ### :zap: Player
 
@@ -50,7 +49,7 @@ Rattin is a single desktop app that does all of it — browse TMDB, click play, 
 - **Skip intro** *(WIP)* - Detects TV show intros via audio fingerprinting
 - **Subtitles** - Embedded and external, with language detection and resizable text (SRT, ASS, SSA, VTT)
 - **Multiple audio tracks** - Switch languages and surround formats on the fly
-- **Source switching** - Swap between different torrents mid-playback if one is slow
+- **Source switching** - Swap between sources mid-playback if one is slow
 - **Mini player** - Keep watching while browsing other content
 
 ### :iphone: Phone Remote
@@ -63,9 +62,9 @@ Rattin is a single desktop app that does all of it — browse TMDB, click play, 
 
 ### :shield: Privacy
 
-- **Debrid integration** - Torrents download on debrid servers (Real-Debrid or TorBox), you stream over HTTPS. Your IP never joins the swarm. Configure via the Debrid button in the navbar.
+- **Private cache** - Optional integration with Real-Debrid or TorBox. You stream over HTTPS, your IP never joins the peer swarm.
 - **Per-app VPN isolation** *(WIP)* - WireGuard tunnel in a Linux network namespace. Only Rattin's traffic goes through the VPN — everything else on your system stays on your normal connection. Built-in kill switch: if the tunnel drops, connections die instead of leaking your real IP.
-- **No built-in tracking** - No signup, no analytics, no telemetry, no phone-home. The only external calls are TMDB (metadata) and your installed content source plugin.
+- **No built-in tracking** - No signup, no analytics, no telemetry, no phone-home. The only external calls are TMDB (metadata) and the Rattin add-on registry.
 
 ---
 
@@ -103,19 +102,19 @@ On first launch, go to Settings (gear icon) and enter a free [TMDB API key](http
 | `TMDB_API_KEY` | Yes | Free API key from [themoviedb.org](https://www.themoviedb.org/settings/api) |
 | `PORT` | No | Server port (default: 9630) |
 
-### Debrid Setup
+### Private Cache Setup
 
-Rattin supports [Real-Debrid](https://real-debrid.com) and [TorBox](https://torbox.app) as debrid providers.
+Rattin supports [Real-Debrid](https://real-debrid.com) and [TorBox](https://torbox.app) as private cache providers. They sit between you and the peer network — your traffic goes over HTTPS to them, never directly to other peers.
 
 1. Get an account with your preferred provider
 2. Copy your API token (Real-Debrid: [apitoken page](https://real-debrid.com/apitoken), TorBox: Settings → API)
-3. Open Rattin, click the **Debrid** button in the navbar, select your provider, paste your key, click **Connect**
-4. Choose your streaming mode:
+3. Open Rattin, open Settings → Streaming, select your provider, paste your key, click **Connect**
+4. Choose your mode:
 
 | Mode | Behavior |
 |------|----------|
-| **Always use debrid** | Every play goes through Real-Debrid. Waits for RD to download if not cached. Best seeking, full privacy, but uncached content has a cold start delay. |
-| **Cached only** | Uses debrid when content is already cached on RD (instant). Falls back to WebTorrent for uncached content (zero delay). |
+| **Always use cache** | Every play goes through the cache. Waits for a download if not already there. Best seeking, full privacy. |
+| **Cached only** | Use the cache when media is already there. Fall back to peer-to-peer for the rest (zero delay). |
 
 ### VPN Setup (optional, Linux only)
 

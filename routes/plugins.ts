@@ -1,25 +1,15 @@
 // routes/plugins.ts
 import type { Express, Request, Response } from "express";
-import { readFileSync } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import type { ServerContext } from "../lib/types.js";
 import type { PluginIndexEntry } from "../lib/plugins/types.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const CDN_INDEX_URL = "https://rattin-plugins.pages.dev/plugin-index.json";
-const LOCAL_INDEX_PATH = path.join(__dirname, "..", "public", "plugin-index.json");
 
 async function fetchPluginIndex(): Promise<PluginIndexEntry[]> {
-  // Try the live CDN index first
   try {
     const resp = await fetch(CDN_INDEX_URL, { signal: AbortSignal.timeout(5000) });
-    if (resp.ok) return await resp.json() as PluginIndexEntry[];
-  } catch { /* CDN unreachable — fall back to local */ }
-  // Fall back to the local bootstrap index
-  try {
-    return JSON.parse(readFileSync(LOCAL_INDEX_PATH, "utf8")) as PluginIndexEntry[];
+    if (!resp.ok) return [];
+    return await resp.json() as PluginIndexEntry[];
   } catch {
     return [];
   }
@@ -38,7 +28,7 @@ export default function pluginRoutes(app: Express, ctx: ServerContext): void {
     res.json(pluginRegistry.getStatus());
   });
 
-  // GET /api/plugins/index — fetch the live plugin index from CDN (fallback to local)
+  // GET /api/plugins/index — fetch the live plugin index from CDN
   app.get("/api/plugins/index", async (_req: Request, res: Response) => {
     try {
       const index = await fetchPluginIndex();
@@ -77,6 +67,30 @@ export default function pluginRoutes(app: Express, ctx: ServerContext): void {
       res.json(pluginRegistry.getStatus());
     } catch (err) {
       log("err", "Plugin install failed", { error: (err as Error).message });
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // POST /api/plugins/install-by-id — look up an entry by id in the index, then install
+  app.post("/api/plugins/install-by-id", async (req: Request, res: Response) => {
+    const { id } = req.body as { id?: string };
+    if (!id) {
+      return res.status(400).json({ error: "id is required" });
+    }
+    try {
+      const index = await fetchPluginIndex();
+      const entry = index.find((e) => e.id === id);
+      if (!entry) {
+        return res.status(404).json({ error: `Plugin "${id}" not found in registry` });
+      }
+      if (!entry.downloadUrl) {
+        return res.status(400).json({ error: `Plugin "${id}" has no downloadUrl` });
+      }
+      await pluginRegistry.installFromUrl(entry.downloadUrl, entry);
+      log("info", "Plugin installed by id", { id, version: entry.version });
+      res.json(pluginRegistry.getStatus());
+    } catch (err) {
+      log("err", "Plugin install by id failed", { id, error: (err as Error).message });
       res.status(500).json({ error: (err as Error).message });
     }
   });

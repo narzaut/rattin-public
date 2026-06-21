@@ -131,8 +131,8 @@ function pickBestEnglishLabel(subs: { value: string; label: string }[]): { value
 export function useSubtitles(deps: UseSubtitlesDeps): UseSubtitlesReturn {
   const { infoHash, fileIndex, subsRef, activeSubRef, preSelectedSub } = deps;
 
-  const [subs, setSubsRaw] = useState<SubtitleOption[]>(subsRef.current || []);
-  const [activeSub, setActiveSubRaw] = useState<string>(activeSubRef.current || "");
+  const [subs, setSubsRaw] = useState<SubtitleOption[]>([]);
+  const [activeSub, setActiveSubRaw] = useState<string>("");
 
   function setSubs(val: SubtitleOption[] | ((prev: SubtitleOption[]) => SubtitleOption[])) {
     setSubsRaw((prev) => {

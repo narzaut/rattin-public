@@ -71,16 +71,19 @@ export default function SourcePicker({ streams, onPick, onClose }: SourcePickerP
     <div className="picker-overlay" onClick={onClose}>
       <div className="picker-modal" onClick={(e) => e.stopPropagation()}>
         <div className="picker-header">
-          <h3>Select Source</h3>
-          {streams && <span className="picker-count">{streams.length} sources</span>}
+          <div>
+            <span className="picker-eyebrow app-eyebrow">Pick what to play</span>
+            <h3>Available versions</h3>
+          </div>
+          {streams && <span className="picker-count">{streams.length} matches</span>}
           <button className="picker-close" onClick={onClose}>&#10005;</button>
         </div>
 
         <div className="picker-list">
           {streams === null ? (
-            <div className="picker-loading">Searching providers...</div>
+            <div className="picker-loading">Finding versions...</div>
           ) : groups.length === 0 ? (
-            <div className="picker-empty">No streams found</div>
+            <div className="picker-empty">No matches yet</div>
           ) : (
             groups.map((group) => (
               <div key={group.resolution} className="picker-group">
@@ -112,7 +115,6 @@ export default function SourcePicker({ streams, onPick, onClose }: SourcePickerP
                           </div>
                         </div>
                         <div className="picker-item-meta">
-                          <span className="picker-source">{s.source.toUpperCase()}</span>
                           <span className="picker-seeds">
                             <span className="picker-seed-dot" />
                             {s.seeders}

@@ -53,7 +53,7 @@ export async function dirSize(dir: string): Promise<number> {
       if (s.isDirectory()) {
         total += await dirSize(fullPath);
       } else {
-        total += s.blocks !== undefined ? s.blocks * 512 : s.size;
+        total += s.size;
       }
     } catch {
       // skip unreadable entries
@@ -72,9 +72,13 @@ export async function clearDir(dir: string): Promise<void> {
   } catch {
     return;
   }
-  await Promise.all(
+  const results = await Promise.allSettled(
     entries.map((name) => rm(path.join(dir, name), { recursive: true, force: true })),
   );
+  const failures = results.filter((r) => r.status === "rejected");
+  if (failures.length > 0) {
+    throw new Error(`clearDir: ${failures.length} of ${entries.length} entries failed`);
+  }
 }
 
 /**
@@ -112,7 +116,7 @@ export async function evictIfLowSpace(
     const fullPath = path.join(dir, name);
     try {
       const s = await stat(fullPath);
-      const size = s.isDirectory() ? await dirSize(fullPath) : (s.blocks !== undefined ? s.blocks * 512 : s.size);
+      const size = s.isDirectory() ? await dirSize(fullPath) : s.size;
       items.push({ name, fullPath, mtimeMs: s.mtimeMs, size });
     } catch {
       // skip unreadable

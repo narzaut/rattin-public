@@ -69,13 +69,16 @@ export default function Search() {
 
   return (
     <div className="search-page">
-      <button className="back-btn" onClick={() => navigate(-1)}>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <button className="app-back-link" onClick={() => navigate(-1)}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
         </svg>
         Back
       </button>
-      <h1>{heading}</h1>
+      <div className="search-page-header">
+        <span className="app-eyebrow">{genre ? "Browsing" : "Search"}</span>
+        <h1 className="page-title">{heading}</h1>
+      </div>
       {results === null ? (
         <div className="search-grid">
           {Array.from({ length: 12 }).map((_, i) => (
@@ -83,7 +86,16 @@ export default function Search() {
           ))}
         </div>
       ) : results.length === 0 ? (
-        <p className="search-empty">No results found</p>
+        <div className="app-empty">
+          <div className="app-empty-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </div>
+          <h3 className="app-empty-title">No results found</h3>
+          <p className="app-empty-sub">Try a different search term, or browse by genre from the home page.</p>
+        </div>
       ) : (
         <>
           <div className="search-grid">

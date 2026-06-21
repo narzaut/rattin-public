@@ -71,7 +71,7 @@ export default function RemoteNowPlaying() {
             <span className="remote-idle-dot" />
             Connected
           </div>
-          <div className="remote-now-playing-meta">Ready to stream</div>
+          <div className="remote-now-playing-meta">Ready to play</div>
         </div>
       </div>
     );

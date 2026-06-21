@@ -242,7 +242,7 @@ export default function Detail() {
       waitForBridge().then(() => {
         if (data.poster_path) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${data.poster_path}`);
         mpvSetTitle(displayTitle(pickerSeason, pickerEpisode));
-        mpvSetLoadingStatus("Starting stream...");
+        mpvSetLoadingStatus("Loading...");
         mpvSetLoading(true);
       });
     }
@@ -308,7 +308,7 @@ export default function Detail() {
         waitForBridge().then(() => {
           if (data.poster_path) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${data.poster_path}`);
           mpvSetTitle(displayTitle(season, episode));
-          mpvSetLoadingStatus("Finding best stream...");
+          mpvSetLoadingStatus("Finding a match...");
           mpvSetLoading(true);
         });
       }
@@ -399,8 +399,8 @@ export default function Detail() {
         <div className="detail-backdrop-overlay" />
       </div>
       <div className="detail-content">
-        <button className="back-btn" onClick={() => navigate(-1)}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <button className="app-back-link" onClick={() => navigate(-1)}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
           </svg>
           Back
@@ -414,15 +414,18 @@ export default function Detail() {
             )}
           </div>
           <div className="detail-info">
-            <h1>{title}</h1>
+            <span className="app-eyebrow">{type === "tv" ? "TV series" : "Film"}</span>
+            <h1 className="page-title">{title}</h1>
             <div className="detail-meta">
-              {year && <span>{year}</span>}
-              {runtime && <span>{runtime}</span>}
-              {seasons && <span>{seasons.length} Season{seasons.length !== 1 ? "s" : ""}</span>}
+              {year && <span className="app-chip is-accent">{year}</span>}
+              {runtime && <span className="app-chip">{runtime}</span>}
+              {seasons && <span className="app-chip">{seasons.length} Season{seasons.length !== 1 ? "s" : ""}</span>}
               {data.vote_average > 0 && (
-                <span className="detail-rating" style={{ color: ratingColor(data.vote_average) }}>
+                <span className="app-chip is-accent" style={{ color: ratingColor(data.vote_average) }}>
                   ★ {data.vote_average.toFixed(1)}
-                  <span className="detail-votes">({data.vote_count?.toLocaleString()})</span>
+                  <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 2 }}>
+                    ({data.vote_count?.toLocaleString()})
+                  </span>
                 </span>
               )}
             </div>
@@ -454,7 +457,7 @@ export default function Detail() {
                 disabled={playState === "loading"}
               >
                 {playState === "loading" ? (
-                  "Finding best stream..."
+                  "Finding a match..."
                 ) : (
                   <>
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
@@ -491,7 +494,7 @@ export default function Detail() {
                   onClick={() => openPicker()}
                   disabled={playState === "loading"}
                 >
-                  Pick Source
+                  Other versions
                 </button>
               )}
               {trailer && (
@@ -506,21 +509,23 @@ export default function Detail() {
               )}
             </div>
             {playState === "error" && (
-              <div className="detail-error-box">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--red)">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+              <div className="app-status-bar is-error">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <div>
-                  <p className="detail-error-title">
-                    {playError === "not_found" ? "No streams available" : "Something went wrong"}
-                  </p>
-                  <p className="detail-error-sub">
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <strong style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    {playError === "not_found" ? "No matches yet" : "Something went wrong"}
+                  </strong>
+                  <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 400 }}>
                     {playError === "not_found"
-                      ? "We couldn't find a good source for this title right now. Try again later or check a different release."
-                      : "There was a problem setting up the stream. Please try again in a moment."}
-                  </p>
+                      ? "Nothing playable is available for this title right now. Try again later."
+                      : "There was a problem starting playback. Please try again in a moment."}
+                  </span>
                 </div>
-                <button className="detail-error-retry" onClick={() => { setPlayState(null); setPlayError(""); }}>
+                <button className="settings-btn-inline" onClick={() => { setPlayState(null); setPlayError(""); }}>
                   Dismiss
                 </button>
               </div>
@@ -530,9 +535,10 @@ export default function Detail() {
 
         {type === "tv" && seasons && (
           <div className="detail-seasons">
-            <div className="detail-season-header">
+            <div className="section-header">
               <h3>Episodes</h3>
               <select
+                className="settings-select"
                 value={selectedSeason}
                 onChange={(e) => {
                   const s = Number(e.target.value);
@@ -623,9 +629,9 @@ export default function Detail() {
                         <button
                           className="episode-pick"
                           onClick={() => openPicker(selectedSeason, ep.episode_number)}
-                          title="Pick source"
+                          title="Other versions"
                         >
-                          Pick Source
+                          Other versions
                         </button>
                         <button
                           className="episode-play"
@@ -656,7 +662,9 @@ export default function Detail() {
 
         {cast && cast.length > 0 && (
           <div className="cast-section">
-            <h3 className="cast-header">Cast</h3>
+            <div className="section-header">
+              <h3>Cast</h3>
+            </div>
             <div className="cast-grid">
               {(castExpanded ? cast : cast.slice(0, 6)).map((c: any) => (
                 <div key={c.id} className="cast-card">
@@ -686,7 +694,7 @@ export default function Detail() {
           <div className="reviews-section">
             {reviews.reddit.length > 0 && (
               <div className="reviews-block">
-                <div className="reviews-header">
+                <div className="section-header">
                   <h3>Reddit Discussions</h3>
                 </div>
                 <div className="reddit-list">
@@ -733,7 +741,7 @@ export default function Detail() {
 
             {reviews.reviews.length > 0 && (
               <div className="reviews-block">
-                <div className="reviews-header">
+                <div className="section-header">
                   <h3>Reviews</h3>
                   {reviews.imdbId && (
                     <a
@@ -742,7 +750,7 @@ export default function Detail() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Read on IMDb
+                      Read on IMDb →
                     </a>
                   )}
                 </div>
