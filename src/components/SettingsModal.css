@@ -178,22 +178,6 @@
   box-shadow: 0 0 8px var(--accent-glow);
 }
 
-.settings-nav-item .nav-count {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-nav-item.active .nav-count {
-  background: rgba(201, 168, 76, 0.15);
-  color: var(--accent-bright);
-}
 
 /* ── Content Area ── */
 
@@ -488,58 +472,6 @@
   border-color: var(--border-light);
 }
 
-.settings-toggle {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.settings-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.settings-toggle-track {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  border-radius: 12px;
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  transition: background var(--transition), border-color var(--transition);
-  flex-shrink: 0;
-}
-
-.settings-toggle-track::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transition: transform var(--transition), background var(--transition);
-}
-
-.settings-toggle input:checked + .settings-toggle-track {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: var(--accent);
-}
-
-.settings-toggle input:checked + .settings-toggle-track::after {
-  transform: translateX(16px);
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow);
-}
-
-.settings-toggle input:focus-visible + .settings-toggle-track {
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
-}
 
 /* ── Buttons ── */
 
@@ -604,17 +536,6 @@
   color: var(--red);
 }
 
-.settings-btn-ghost {
-  background: transparent;
-  color: var(--text-muted);
-  border-color: transparent;
-  padding: 6px 10px;
-}
-
-.settings-btn-ghost:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--bg-elevated);
-}
 
 .settings-btn-inline {
   display: inline-flex;
@@ -693,17 +614,7 @@
   border: 1px solid rgba(251, 113, 133, 0.18);
 }
 
-.settings-status-bar.is-success {
-  background: rgba(74, 222, 128, 0.08);
-  color: var(--green);
-  border: 1px solid rgba(74, 222, 128, 0.18);
-}
 
-.settings-status-bar.is-info {
-  background: rgba(201, 168, 76, 0.06);
-  color: var(--accent-bright);
-  border: 1px solid rgba(201, 168, 76, 0.18);
-}
 
 .settings-status-inline {
   font-size: 12px;
@@ -752,11 +663,6 @@
 
 /* ── TMDB-specific layout ── */
 
-.tmdb-source-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
 
 .tmdb-source-head {
   display: flex;
@@ -880,19 +786,6 @@
 
 /* ── Plugin installed card (more detail than before) ── */
 
-.plugin-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.plugin-detail-grid .settings-info-row {
-  border-right: 1px solid var(--border);
-}
-
-.plugin-detail-grid .settings-info-row:nth-child(2n) {
-  border-right: none;
-}
 
 /* ── Plugin registry list ── */
 
@@ -1002,17 +895,6 @@
   min-width: 110px;
 }
 
-.plugin-row-check {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(74, 222, 128, 0.12);
-  color: var(--green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(74, 222, 128, 0.25);
-}
 
 /* ── Storage bar (cache) ── */
 
@@ -1381,13 +1263,6 @@
     grid-template-columns: 1fr;
   }
 
-  .plugin-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .plugin-detail-grid .settings-info-row {
-    border-right: none;
-  }
 
   .plugin-row {
     flex-direction: column;

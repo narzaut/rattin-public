@@ -78,7 +78,7 @@ a {
   text-decoration: none;
 }
 
-button, .navbar, .movie-card, .mini-player, .hero-section, .content-row-header, .player-overlay {
+button, .navbar, .movie-card, .mini-player, .content-row-header {
   user-select: none;
   -webkit-user-select: none;
 }
@@ -224,24 +224,6 @@ img {
   line-height: 1.15;
 }
 
-.page-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  margin-bottom: 32px;
-}
-
-.page-title-row .page-title {
-  margin: 0;
-}
-
-.page-subtitle {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
 
 /* Inline pill / chip — used for counts, counts, lightweight status */
 .app-chip {
@@ -261,13 +243,6 @@ img {
   border: 1px solid var(--border);
 }
 
-.app-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 6px currentColor;
-}
 
 .app-chip.is-accent {
   background: rgba(201, 168, 76, 0.1);
@@ -275,11 +250,6 @@ img {
   border-color: rgba(201, 168, 76, 0.25);
 }
 
-.app-chip.is-success {
-  background: rgba(74, 222, 128, 0.1);
-  color: var(--green);
-  border-color: rgba(74, 222, 128, 0.22);
-}
 
 /* Anchored status bar — for inline error / success / info states */
 .app-status-bar {
@@ -303,17 +273,7 @@ img {
   border: 1px solid rgba(251, 113, 133, 0.18);
 }
 
-.app-status-bar.is-success {
-  background: rgba(74, 222, 128, 0.08);
-  color: var(--green);
-  border: 1px solid rgba(74, 222, 128, 0.18);
-}
 
-.app-status-bar.is-info {
-  background: rgba(201, 168, 76, 0.06);
-  color: var(--accent-bright);
-  border: 1px solid rgba(201, 168, 76, 0.18);
-}
 
 @keyframes statusBarIn {
   from { opacity: 0; transform: translateY(-3px); }

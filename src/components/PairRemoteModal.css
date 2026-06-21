@@ -169,16 +169,6 @@
   font-family: "SF Mono", "Fira Code", monospace;
 }
 
-.pair-session-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pair-session-id {
-  font-size: 11px;
-  color: var(--text-muted);
-}
 
 .pair-end-btn {
   padding: 11px;
