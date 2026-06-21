@@ -6,10 +6,6 @@ export function pluginDir(): string {
   return path.join(configDir(), "plugins");
 }
 
-export function pluginFilePath(): string {
-  return path.join(pluginDir(), "plugin.js");
-}
-
 export function pluginMetaPath(): string {
   return path.join(pluginDir(), "plugin-meta.json");
 }
