@@ -266,31 +266,6 @@
   color: var(--green);
 }
 
-.player-source-tag.low-peers {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-
-.player-source-tag.multi-audio {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93bbfd;
-}
-
-.player-source-tag.has-subs {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c4b5fd;
-}
-
-.player-source-tag.foreign {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-}
-
-.player-source-tag.languages {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-secondary);
-  letter-spacing: 2px;
-}
 
 .player-source-item-meta {
   display: flex;
@@ -299,15 +274,6 @@
   flex: 0 0 auto;
 }
 
-.player-source-provider {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 2px 7px;
-  border-radius: 3px;
-  background: var(--accent-subtle);
-  color: var(--accent-bright);
-}
 
 .player-source-seeds {
   display: flex;
