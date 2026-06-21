@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { tmdbCache, CACHE_TTL, fetchTMDB, startCacheJanitor } from "../lib/cache/cache.js";
-import { tmdbConfigured, saveTmdbKey, deleteTmdbKey } from "../lib/tmdb-config.js";
+import { tmdbConfigured, saveTmdbKey, deleteTmdbKey, hasUserTmdbKey } from "../lib/tmdb-config.js";
 import type { ServerContext } from "../lib/types.js";
 
 interface RedditThread {
@@ -28,7 +28,7 @@ export default function tmdbRoutes(app: Express, ctx: ServerContext): void {
   // ── TMDB API key configuration ──────────────────────────────────────
 
   app.get("/api/tmdb/status", (_req: Request, res: Response) => {
-    res.json({ configured: tmdbConfigured() });
+    res.json({ configured: true, hasUserKey: hasUserTmdbKey() });
   });
 
   app.post("/api/tmdb/config", async (req: Request, res: Response) => {
