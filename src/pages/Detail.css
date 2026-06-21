@@ -175,6 +175,20 @@
   font-weight: 500;
 }
 
+.detail-quality-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #b8952e;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(184, 149, 46, 0.08);
+  border: 1px solid rgba(184, 149, 46, 0.18);
+  white-space: nowrap;
+}
+
 .detail-save-btn {
   display: flex;
   align-items: center;
