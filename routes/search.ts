@@ -96,8 +96,8 @@ app.post("/api/check-availability", async (req: Request, res: Response) => {
       capped.map((item) => ({ title: item.title, year: Number(item.year) || undefined, type: item.type || "movie" }))
     );
     const available = result.available.map((idx) => capped[idx]?.id).filter(Boolean);
-    log("info", "Availability check", { requested: capped.length, available: available.length });
-    res.json({ available });
+    log("info", "Availability check", { requested: capped.length, available: available.length, warning: result.warning });
+    res.json({ available, warning: result.warning });
   } catch {
     // Plugin not installed or search failed — fail open (show everything)
     res.json({ available: capped.map((i) => i.id) });

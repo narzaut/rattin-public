@@ -129,14 +129,14 @@ export async function fetchLivePeers(infoHashes: string[]): Promise<Record<strin
   return res.json();
 }
 
-export async function checkAvailability(items: Array<{ id: number; title: string; year?: number; type: string }>): Promise<Set<number>> {
+export async function checkAvailability(items: Array<{ id: number; title: string; year?: number; type: string }>): Promise<{ available: Set<number>; warning?: string }> {
   const res = await fetch("/api/check-availability", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
   const data = await res.json();
-  return new Set(data.available || []);
+  return { available: new Set(data.available || []), warning: data.warning };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

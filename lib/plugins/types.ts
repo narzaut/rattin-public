@@ -59,6 +59,7 @@ export interface AvailabilityItem {
 
 export interface AvailabilityResult {
   available: number[];
+  warning?: string;  // plugin-provided warning — app displays blindly, never interprets
 }
 
 /**
