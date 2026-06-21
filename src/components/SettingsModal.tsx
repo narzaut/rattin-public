@@ -180,7 +180,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     try {
       const index = await getPluginIndex();
       const compatible = index
-        .filter((e) => (e.apiVersion ?? 1) === 1)
+        .filter((e) => (e.apiVersion ?? 1) <= 2)
         .sort((a, b) => b.version.localeCompare(a.version));
       setPluginIndex(compatible);
     } catch {
