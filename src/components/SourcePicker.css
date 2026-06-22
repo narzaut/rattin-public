@@ -35,10 +35,29 @@
   border-bottom: 1px solid var(--border);
 }
 
+.picker-header > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-eyebrow {
+  display: block;
+}
+
 .picker-header h3 {
   font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 500;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 4px 0 0;
+  letter-spacing: -0.2px;
+}
+
+.picker-plugin-byline {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0;
 }
 
 .picker-count {
@@ -87,16 +106,23 @@
 }
 
 .picker-group-label {
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  color: var(--accent-bright);
-  padding: 16px 14px 8px;
-  border-left: 3px solid var(--accent);
-  border-bottom: 3px solid var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  padding: 18px 14px 8px;
   margin: 4px 0 2px;
-  width: fit-content;
-  padding-right: 24px;
+}
+
+.picker-group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 /* -- Source Items -- */
@@ -172,6 +198,12 @@
   color: var(--accent-bright);
 }
 
+.picker-tag.low-quality {
+  background: rgba(184, 149, 46, 0.1);
+  color: #b8952e;
+  font-weight: 600;
+}
+
 .picker-item-meta {
   display: flex;
   align-items: center;
@@ -179,32 +211,14 @@
   flex: 0 0 auto;
 }
 
-.picker-source {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 3px;
-  background: var(--accent-subtle);
-  color: var(--accent-bright);
-}
-
 .picker-seeds {
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 0.76rem;
-  color: var(--green);
+  color: var(--text-secondary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-
-.picker-seed-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
 }
 
 .picker-size {
@@ -256,7 +270,7 @@
   }
 }
 
-.picker-copy-magnet {
+.picker-copy-link {
   position: relative;
   display: flex;
   align-items: center;
@@ -269,12 +283,12 @@
   flex-shrink: 0;
 }
 
-.picker-copy-magnet:hover {
+.picker-copy-link:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-secondary);
 }
 
-.picker-copy-magnet.copied {
+.picker-copy-link.copied {
   color: var(--green);
 }
 

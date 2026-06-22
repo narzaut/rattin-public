@@ -21,9 +21,10 @@ interface SourcePickerProps {
   streams: Stream[] | null;
   onPick: (stream: Stream) => void;
   onClose: () => void;
+  pluginName?: string;
 }
 
-export default function SourcePicker({ streams, onPick, onClose }: SourcePickerProps) {
+export default function SourcePicker({ streams, onPick, onClose, pluginName }: SourcePickerProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const groups = useMemo<ResGroup[]>(() => {
@@ -71,16 +72,19 @@ export default function SourcePicker({ streams, onPick, onClose }: SourcePickerP
     <div className="picker-overlay" onClick={onClose}>
       <div className="picker-modal" onClick={(e) => e.stopPropagation()}>
         <div className="picker-header">
-          <h3>Select Source</h3>
-          {streams && <span className="picker-count">{streams.length} sources</span>}
+          <div>
+            <span className="picker-eyebrow app-eyebrow">Pick what to play</span>
+            <h3>Available versions{pluginName ? <span className="picker-plugin-byline"> via {pluginName}</span> : null}</h3>
+          </div>
+          {streams && <span className="picker-count">{streams.length} matches</span>}
           <button className="picker-close" onClick={onClose}>&#10005;</button>
         </div>
 
         <div className="picker-list">
           {streams === null ? (
-            <div className="picker-loading">Searching providers...</div>
+            <div className="picker-loading">Finding versions...</div>
           ) : groups.length === 0 ? (
-            <div className="picker-empty">No streams found</div>
+            <div className="picker-empty">No matches yet</div>
           ) : (
             groups.map((group) => (
               <div key={group.resolution} className="picker-group">
@@ -104,24 +108,23 @@ export default function SourcePicker({ streams, onPick, onClose }: SourcePickerP
                         <div className="picker-item-main">
                           <span className="picker-item-name">{s.name}</span>
                           <div className="picker-item-tags">
-                            {s.cached && <span className="picker-tag cached">Cached</span>}
-                            {s.seasonPack && <span className="picker-tag season-pack">Season Pack</span>}
+                            {s.qualityHint === "low" && <span className="picker-tag low-quality">Low quality</span>}
+                            {s.cached && <span className="picker-tag cached">Instant</span>}
+                            {s.seasonPack && <span className="picker-tag season-pack">Full season</span>}
                             {s.tags.filter((t: string) => t !== "Native").map((t: string) => (
                               <span key={t} className="picker-tag">{t}</span>
                             ))}
                           </div>
                         </div>
                         <div className="picker-item-meta">
-                          <span className="picker-source">{s.source.toUpperCase()}</span>
                           <span className="picker-seeds">
-                            <span className="picker-seed-dot" />
                             {s.seeders}
                           </span>
                           <span className="picker-size">{formatBytes(s.size)}</span>
                           <button
-                            className={`picker-copy-magnet${copied ? " copied" : ""}`}
+                            className={`picker-copy-link${copied ? " copied" : ""}`}
                             onClick={(e) => handleCopy(e, s)}
-                            title="Copy magnet link"
+                            title="Copy link"
                           >
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>

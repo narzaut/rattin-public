@@ -92,7 +92,7 @@ export default function Player() {
     setSources(state?.sources || []);
     if (state?.sources?.length > 0) return;
     searchStreams(state.title, state.year, state.type, state.season, state.episode, state.imdbId)
-      .then((results) => { if (results.length > 0) setSources(results); })
+      .then(({ results }) => { if (results.length > 0) setSources(results); })
       .catch(() => {});
   }, [infoHash]);
 
@@ -160,7 +160,9 @@ export default function Player() {
 
   const {
     dlProgress, dlSpeed, numPeers,
+    fileName,
     getEffectiveTime,
+    getEffectiveDuration,
     seekTo,
     setPlaying,
   } = useSeek({
@@ -329,7 +331,7 @@ export default function Player() {
               } catch { /* autoPlay returns 404 if no reuse — fall through to search */ }
 
               // No reuse — search via the plugin
-              const results = await searchStreams(baseTitle, year, "tv", next.season, next.episode, ep.imdbId);
+              const { results } = await searchStreams(baseTitle, year, "tv", next.season, next.episode, ep.imdbId);
               if (!results || results.length === 0) {
                 return { infoHash: "", fileIndex: 0, magnet: "" };
               }
@@ -524,14 +526,14 @@ export default function Player() {
     await waitForBridge();
     if (state.posterPath) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${state.posterPath}`);
     mpvSetTitle(`${title} — S${nextSeason}E${nextEpisode}`);
-    mpvSetLoadingStatus("Finding best stream...");
+    mpvSetLoadingStatus("Searching next episode...");
     mpvSetLoading(true);
     try {
       // Search for next episode and fetch metadata in parallel
       const searchPromise = searchStreams(title, year, "tv", nextSeason, nextEpisode, imdbId);
       const seasonPromise = fetchSeason(state.tmdbId, nextSeason).catch(() => null);
       const episodeGroupsPromise = state.hasEpisodeGroups ? fetchEpisodeGroups(state.tmdbId).catch(() => null) : Promise.resolve(null);
-      const [results, seasonData, episodeGroups] = await Promise.all([searchPromise, seasonPromise, episodeGroupsPromise]);
+      const [{ results }, seasonData, episodeGroups] = await Promise.all([searchPromise, seasonPromise, episodeGroupsPromise]);
 
       if (!results || results.length === 0) {
         mpvSetLoading(false);
@@ -595,28 +597,26 @@ export default function Player() {
     const isDebrid = !!state?.debridStreamKey;
     let status: string;
     if (isDebrid) {
-      status = "Loading stream...";
+      status = "Loading...";
     } else if (numPeers === 0 && dlProgress < 1) {
-      status = "Connecting to peers...";
+      status = "Connecting...";
     } else if (dlProgress < 1) {
       const speed = dlSpeed >= 1048576
         ? `${(dlSpeed / 1048576).toFixed(1)} MB/s`
         : dlSpeed >= 1024
           ? `${(dlSpeed / 1024).toFixed(0)} KB/s`
           : `${dlSpeed} B/s`;
-      status = `Connected to ${numPeers} peer${numPeers !== 1 ? "s" : ""} \u00b7 ${speed}`;
+      status = `Downloading \u00b7 ${speed}`;
     } else {
       status = "Starting playback...";
     }
     mpvSetLoadingStatus(status);
-  }, [numPeers, dlSpeed, dlProgress, state?.debridStreamKey]);
+  }, [dlSpeed, dlProgress, state?.debridStreamKey]);
 
   // Sync PlayerContext.active with URL params (Detail.tsx navigates here without calling startStream)
   useEffect(() => {
     if (!infoHash || !fileIndex) return;
-    if (active?.infoHash !== infoHash || String(active?.fileIndex) !== String(fileIndex)) {
-      startStream(infoHash, fileIndex, mediaTitle, tags, state?.debridStreamKey);
-    }
+    startStream(infoHash, fileIndex, mediaTitle, tags, state?.debridStreamKey);
   }, [infoHash, fileIndex]);
 
   // Native mode: tell mpv to play
@@ -763,24 +763,29 @@ export default function Player() {
         effectiveTimeRef.current = { time: t, duration: prev?.duration ?? 0, ts: Date.now() };
         playbackStarted = true;
         bingeCoordinatorRef.current?.onTimeUpdate(t);
+        // Restore saved playback position on first time-pos (mpv can seek now).
+        // Use server-provided duration (getEffectiveDuration) instead of
+        // durationChanged event, which may not fire when replaying same file.
+        // Prefer the larger of sessionPos / historyPos — sessionStorage can
+        // get stale or overwritten with 0 during bug cascades.
+        if (!positionRestored) {
+          const dur = getEffectiveDuration();
+          if (dur > 0 || t > 10) {
+            positionRestored = true;
+            const sessionPos = parseFloat(sessionStorage.getItem(playbackKey(infoHash!, fileIndex!)) || "0");
+            const historyPos = state?.resumePosition ? parseFloat(state.resumePosition) : 0;
+            const saved = Math.max(sessionPos, historyPos);
+            if (shouldRestorePosition(saved, dur > 0 ? dur : saved + 60)) {
+              mpvSeek(saved);
+            }
+            bingeCoordinatorRef.current?.onEpisodeStart({ duration: dur, currentTime: saved || t });
+          }
+        }
       });
       onMpvDurationChanged((d) => {
         const prev = effectiveTimeRef.current;
         const currentTime = prev?.time ?? 0;
         effectiveTimeRef.current = { time: currentTime, duration: d, ts: Date.now() };
-        // Restore saved playback position once we know the duration
-        // sessionStorage (updated every 3s) is freshest within a session;
-        // resumePosition from watch history persists across app restarts
-        if (!positionRestored && d > 0) {
-          positionRestored = true;
-          const sessionPos = parseFloat(sessionStorage.getItem(playbackKey(infoHash!, fileIndex!)) || "0");
-          const historyPos = state?.resumePosition ? parseFloat(state.resumePosition) : 0;
-          const saved = sessionPos > 0 ? sessionPos : historyPos;
-          if (shouldRestorePosition(saved, d)) {
-            mpvSeek(saved);
-          }
-          bingeCoordinatorRef.current?.onEpisodeStart({ duration: d, currentTime: saved || currentTime });
-        }
         if (!markersComputed && d > 0) {
           markersComputed = true;
           void computeEpisodeCapabilities(d);
@@ -1186,7 +1191,7 @@ export default function Player() {
         <div className="player-sources-overlay" onClick={() => setShowSources(false)}>
           <div className="player-sources-panel" onClick={(e) => e.stopPropagation()}>
             <div className="player-sources-header">
-              <h3>Switch Source</h3>
+              <h3>Available versions</h3>
               <button className="player-sources-close" onClick={() => setShowSources(false)}>&#10005;</button>
             </div>
             <div className="player-sources-list">
@@ -1206,19 +1211,16 @@ export default function Player() {
                       <span className="player-source-item-name">{s.name}</span>
                       <div className="player-source-item-tags">
                         {isCurrent && <span className="player-source-tag current">Playing</span>}
-                        {s.cached && <span className="player-source-tag cached">Cached</span>}
-                        {s.seasonPack && <span className="player-source-tag season-pack">Season Pack</span>}
+                        {s.cached && <span className="player-source-tag cached">Instant</span>}
+                        {s.seasonPack && <span className="player-source-tag season-pack">Full season</span>}
                         {s.tags?.filter((t: string) => t !== "Native").map((t: string) => (
                           <span key={t} className="player-source-tag">{t}</span>
                         ))}
                       </div>
                     </div>
                     <div className="player-source-item-meta">
-                      <span className="player-source-provider">{s.source?.toUpperCase()}</span>
                       <span className="player-source-seeds">
-                        <span className="player-source-seed-dot" />
                         {live ? live.numPeers : s.seeders}
-                        {live && <span className="player-source-seed-label">live</span>}
                       </span>
                       <span className="player-source-size">{formatBytes(s.size)}</span>
                       {isSwitching && <span className="player-source-switching">Switching...</span>}

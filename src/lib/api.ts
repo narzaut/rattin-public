@@ -97,7 +97,7 @@ export async function autoPlay(title: string, year: number | undefined, type: st
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function searchStreams(title: string, year: number | undefined, type: string, season?: number, episode?: number, imdbId?: string): Promise<any[]> {
+export async function searchStreams(title: string, year: number | undefined, type: string, season?: number, episode?: number, imdbId?: string): Promise<{ results: any[]; warning?: string }> {
   const res = await fetch("/api/search-streams", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -105,7 +105,7 @@ export async function searchStreams(title: string, year: number | undefined, typ
   });
   if (res.status === 503) throw new Error("no_source");
   const data = await res.json();
-  return data.results || [];
+  return { results: data.results || [], warning: data.warning };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,14 +129,14 @@ export async function fetchLivePeers(infoHashes: string[]): Promise<Record<strin
   return res.json();
 }
 
-export async function checkAvailability(items: Array<{ id: number; title: string; year?: number; type: string }>): Promise<Set<number>> {
+export async function checkAvailability(items: Array<{ id: number; title: string; year?: number; type: string }>): Promise<{ available: Set<number>; warning?: string; warnings?: Record<number, string> }> {
   const res = await fetch("/api/check-availability", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
   const data = await res.json();
-  return new Set(data.available || []);
+  return { available: new Set(data.available || []), warning: data.warning, warnings: data.warnings };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -533,33 +533,37 @@ export async function fetchPrefetchReady(infoHash: string, fileIndex: number): P
 
 // ── Plugin API ───────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPluginStatus(): Promise<any> {
+export interface PluginIndexEntry {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  downloadUrl: string;
+  sha256: string;
+  version: string;
+  apiVersion: number;
+}
+
+export interface PluginStatus {
+  installed: boolean;
+  running: boolean;
+  plugin: { id: string; name: string; version: string } | null;
+  sourceUrl: string | null;
+}
+
+export async function getPluginStatus(): Promise<PluginStatus> {
   return get("/api/plugins/status");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPluginIndex(): Promise<any[]> {
+export async function getPluginIndex(): Promise<PluginIndexEntry[]> {
   return get("/api/plugins/index");
 }
 
-export async function installPlugin(url: string, entry: {
-  id: string; name: string; description: string; author: string;
-  downloadUrl: string; sha256: string; version: string; apiVersion: number;
-}): Promise<void> {
-  const res = await fetch("/api/plugins/install", {
+export async function installPluginById(id: string): Promise<void> {
+  const res = await fetch("/api/plugins/install-by-id", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, entry }),
-  });
-  if (!res.ok) throw new Error("install_failed");
-}
-
-export async function installPluginFromUrl(url: string): Promise<void> {
-  const res = await fetch("/api/plugins/install-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ id }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

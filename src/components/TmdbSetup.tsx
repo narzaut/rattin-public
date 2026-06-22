@@ -27,7 +27,8 @@ export default function TmdbSetup({ onComplete }: TmdbSetupProps) {
   return (
     <div className="tmdb-setup-overlay">
       <div className="tmdb-setup-modal">
-        <h2>TMDB API Key Required</h2>
+        <span className="app-eyebrow">First-time setup</span>
+        <h2>TMDB API key</h2>
         <p>
           Rattin uses <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a> for
           movie and TV metadata. The app won't work without it.
@@ -50,14 +51,23 @@ export default function TmdbSetup({ onComplete }: TmdbSetupProps) {
             autoFocus
           />
           <button
-            className="pair-create-btn"
+            className="settings-btn settings-btn-primary settings-btn-full"
             onClick={handleSave}
             disabled={saving || !apiKey.trim()}
           >
             {saving ? "Verifying..." : "Save & Continue"}
           </button>
         </div>
-        {error && <p className="settings-error">{error}</p>}
+        {error && (
+          <div className="app-status-bar is-error">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

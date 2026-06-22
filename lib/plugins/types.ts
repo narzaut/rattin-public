@@ -24,6 +24,7 @@ export interface SearchResult {
   subLanguages?: string[];
   multiAudio?: boolean;
   foreignOnly?: boolean;
+  qualityHint?: string;  // arbitrary plugin tag — app passes through uninterpreted
 }
 
 export interface PluginIndexEntry {
@@ -59,6 +60,8 @@ export interface AvailabilityItem {
 
 export interface AvailabilityResult {
   available: number[];
+  warning?: string;  // aggregate — set when all items are all-low-quality
+  warnings?: Record<number, string>;  // per-item warnings (index → text)
 }
 
 /**

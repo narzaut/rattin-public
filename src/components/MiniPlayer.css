@@ -4,11 +4,13 @@
   right: 24px;
   z-index: 1000;
   display: flex;
-  background: rgba(10, 10, 15, 0.95);
+  background: linear-gradient(180deg, rgba(17, 17, 26, 0.95) 0%, rgba(10, 10, 15, 0.95) 100%);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(201, 168, 76, 0.06);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(201, 168, 76, 0.06) inset;
   backdrop-filter: blur(20px);
   animation: mini-slide-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }

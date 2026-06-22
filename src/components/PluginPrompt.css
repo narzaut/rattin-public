@@ -16,7 +16,7 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   width: 90%;
-  max-width: 420px;
+  max-width: 440px;
   overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
   animation: fadeUp 0.3s ease-out;
@@ -60,64 +60,39 @@
   line-height: 1.6;
 }
 
-.plugin-prompt-entry {
+.plugin-prompt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
   background: var(--bg-deep);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  padding: 16px;
+  border-radius: var(--radius-sm);
 }
 
-.plugin-prompt-entry-name {
+.plugin-prompt-card-name {
+  font-size: 14px;
   font-weight: 600;
-  font-size: 0.95rem;
+  color: var(--text-primary);
+  letter-spacing: -0.1px;
 }
 
-.plugin-prompt-entry-version {
-  display: inline-block;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-left: 8px;
-}
-
-.plugin-prompt-entry-desc {
-  font-size: 0.82rem;
+.plugin-prompt-card-desc {
+  font-size: 12.5px;
   color: var(--text-secondary);
-  margin: 8px 0 12px;
   line-height: 1.5;
 }
 
-.plugin-prompt-entry-author,
-.plugin-prompt-entry-signed,
-.plugin-prompt-entry-hash {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.75rem;
-  margin-bottom: 6px;
-}
-
-.plugin-prompt-meta-label {
+.plugin-prompt-card-version {
+  font-size: 11px;
   color: var(--text-muted);
-  min-width: 60px;
-}
-
-.plugin-prompt-meta-value {
-  color: var(--text-secondary);
-}
-
-.plugin-prompt-signed-badge {
-  color: var(--green);
-  font-weight: 600;
-}
-
-.plugin-prompt-hash {
-  font-family: monospace;
-  font-size: 0.72rem;
+  margin-top: 2px;
 }
 
 .plugin-prompt-install-btn {
   width: 100%;
-  padding: 13px 22px;
+  margin-top: 10px;
+  padding: 12px 22px;
   background: var(--accent);
   color: var(--bg-deep);
   border-radius: var(--radius-sm);

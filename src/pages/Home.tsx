@@ -7,6 +7,7 @@ import { fetchTrending, fetchDiscover, fetchGenres, fetchContinueWatching, dismi
 import { waitForBridge, mpvSetPoster, mpvSetTitle, mpvSetLoading, mpvSetLoadingStatus } from "../lib/native-bridge";
 import { useRemoteMode } from "../lib/PlayerContext";
 import { useRefetchOnRecovery } from "../lib/useRefetchOnRecovery";
+import { getHomeCache, setHomeCache } from "../lib/home-cache";
 import "./Home.css";
 
 function recentDateRange() {
@@ -38,12 +39,29 @@ export default function Home() {
     : withoutAmpersand;
 
   const loadHomeData = useCallback(() => {
+    // Instant render from frontend cache (survives app restarts)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedTrending = getHomeCache<any>("trending");
+    if (cachedTrending) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items = (cachedTrending.results || []).filter((i: any) => i.backdrop_path && i.overview);
+      if (items.length) setHero(items[0]);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedGenres = getHomeCache<any>("genres");
+    if (cachedGenres) setGenres(cachedGenres.genres || []);
+
+    // Revalidate in background
     fetchTrending().then((data) => {
+      setHomeCache("trending", data);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const items = (data.results || []).filter((i: any) => i.backdrop_path && i.overview);
       if (items.length) setHero(items[0]);
     }).catch(() => {});
-    fetchGenres().then((data) => setGenres(data.genres || [])).catch(() => {});
+    fetchGenres().then((data) => {
+      setHomeCache("genres", data);
+      setGenres(data.genres || []);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { loadHomeData(); }, [loadHomeData]);
@@ -61,7 +79,7 @@ export default function Home() {
       waitForBridge().then(() => {
         if (item.posterPath) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${item.posterPath}`);
         mpvSetTitle(displayTitle);
-        mpvSetLoadingStatus("Finding best stream...");
+        mpvSetLoadingStatus("Searching...");
         mpvSetLoading(true);
       });
     }
@@ -71,7 +89,7 @@ export default function Home() {
       (window as any).__rattinCancelPlay = false;
 
       // Search for streams via the plugin
-      const results = await searchStreams(
+      const { results } = await searchStreams(
         item.title,
         item.year,
         item.mediaType,

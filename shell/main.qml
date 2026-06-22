@@ -15,6 +15,13 @@ Window {
     title: "Rattin"
     color: "#000000"
 
+    onClosing: {
+        // Kill the process directly — no Qt event loop, no signals.
+        // shutdown.shutdown() calls TerminateProcess on Windows / _exit on Linux.
+        bridge.stop()
+        shutdown.shutdown()
+    }
+
     property double currentTime: 0
     property double duration: 0
     property bool paused: false

@@ -3,6 +3,11 @@ import { scoreTorrent, parseTags, findEpisodeFile as findEpisodeFileFromList, fi
 import { fmtBytes, throttle } from "../lib/media/media-utils.js";
 import { getDebridProvider, setActiveDebridStream, getDebridMode } from "../lib/torrent/debrid.js";
 import type { ServerContext, Torrent } from "../lib/types.js";
+
+// In-memory cache for availability and quality checks — avoids hammering the
+// plugin (and its upstream APIs) on every page load. TTL: 30 minutes.
+const availCache = new Map<string, { data: unknown; ts: number }>();
+const AVAIL_CACHE_TTL = 30 * 60 * 1000;
 import type { SearchQuery, SearchResult as PluginSearchResult, PluginRegistry } from "../lib/plugins/types.js";
 
 interface SearchResult {
@@ -19,6 +24,7 @@ interface SearchResult {
   subLanguages?: string[];
   multiAudio?: boolean;
   foreignOnly?: boolean;
+  qualityHint?: string;
 }
 
 export default function searchRoutes(app: Express, ctx: ServerContext): void {
@@ -27,6 +33,21 @@ export default function searchRoutes(app: Express, ctx: ServerContext): void {
   const client = () => ctx.client;
 
 const SEARCH_TIMEOUT = 10000;
+
+// Used to seed DHT peer discovery for magnet links.
+// WebTorrent does DHT lookups, but without tracker seeds the bootstrap is slow.
+const TRACKERS = [
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+  "udp://tracker.dler.org:6969/announce",
+  "udp://open.demonii.com:1337/announce",
+];
+
+function buildMagnet(infoHash: string, name: string): string {
+  const trackers = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
+  return `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name)}${trackers}`;
+}
 
 async function searchTVViaPlugin(
   pluginRegistry: PluginRegistry,
@@ -75,23 +96,30 @@ app.post("/api/check-availability", async (req: Request, res: Response) => {
   const { items } = req.body as { items?: Array<{ id: number; title: string; year?: string; type?: string }> };
   if (!Array.isArray(items) || items.length === 0) return res.json({ available: [] });
 
-  // No plugin installed — fail open (show everything)
-  if (!ctx.pluginRegistry?.isRunning()) {
-    const capped = items.slice(0, 40);
-    return res.json({ available: capped.map((i) => i.id) });
+  // Check cache first — keyed by the first item (detail page uses single-item checks)
+  const cacheKey = items.length === 1
+    ? `avail:${items[0].id}:${items[0].title}:${items[0].year || ""}`
+    : null;
+  if (cacheKey) {
+    const cached = availCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < AVAIL_CACHE_TTL) {
+      return res.json(cached.data);
+    }
   }
 
   const capped = items.slice(0, 40);
   try {
-    const result = await ctx.pluginRegistry.availability(
+    const result = await ctx.pluginRegistry!.availability(
       capped.map((item) => ({ title: item.title, year: Number(item.year) || undefined, type: item.type || "movie" }))
     );
     const available = result.available.map((idx) => capped[idx]?.id).filter(Boolean);
-    log("info", "Availability check", { requested: capped.length, available: available.length });
-    res.json({ available });
-  } catch (err) {
-    log("err", "Availability check failed", { error: (err as Error).message });
-    res.json({ available: capped.map((i) => i.id) }); // fail open
+    log("info", "Availability check", { requested: capped.length, available: available.length, warning: result.warning });
+    const response = { available, warning: result.warning, warnings: result.warnings };
+    if (cacheKey) availCache.set(cacheKey, { data: response, ts: Date.now() });
+    res.json(response);
+  } catch {
+    // Plugin not installed or search failed — fail open (show everything)
+    res.json({ available: capped.map((i) => i.id) });
   }
 });
 
@@ -103,19 +131,18 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
   };
   if (!title) return res.status(400).json({ error: "Title is required" });
 
-  if (!ctx.pluginRegistry?.isRunning()) {
-    return res.status(503).json({ error: "no_source" });
-  }
-
   let results: SearchResult[];
   try {
     if (type === "tv" && season && episode) {
-      results = await searchTVViaPlugin(ctx.pluginRegistry, title, season, episode, imdbId);
+      results = await searchTVViaPlugin(ctx.pluginRegistry!, title, season, episode, imdbId);
     } else {
       const query = year ? `${title} ${year}` : title;
-      results = await ctx.pluginRegistry.search({ query, type: (type as "movie" | "tv") || "movie", imdbId });
+      results = await ctx.pluginRegistry!.search({ query, type: (type as "movie" | "tv") || "movie", imdbId });
     }
   } catch (err) {
+    if ((err as Error).message === "No plugin installed") {
+      return res.status(503).json({ error: "no_source" });
+    }
     log("err", "Plugin search failed", { error: (err as Error).message });
     return res.status(502).json({ error: "search_failed" });
   }
@@ -150,11 +177,20 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
           subLanguages: r.subLanguages || [],
           multiAudio: r.multiAudio || false,
           foreignOnly: r.foreignOnly || false,
+          qualityHint: r.qualityHint,
         };
       })
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score || b.seeders - a.seeders)
       .slice(0, 50);
+
+    // Plugin provides qualityHint on each result — if all scored results are
+    // low quality, surface a warning to the frontend. The app doesn't interpret
+    // the value; it just passes through whatever the plugin set.
+    const warning =
+      scored.length > 0 && scored.every((r) => r.qualityHint === "low")
+        ? "Limited quality"
+        : undefined;
 
     // Check debrid cache availability if configured
     const debrid = getDebridProvider();
@@ -172,7 +208,7 @@ app.post("/api/search-streams", async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ results: scored });
+    res.json({ results: scored, warning });
   } catch (err) {
     log("err", "Search streams failed", { error: (err as Error).message });
     res.json({ results: [] });
@@ -275,7 +311,7 @@ app.post("/api/play-torrent", async (req: Request, res: Response) => {
   if (!infoHash) return res.status(400).json({ error: "infoHash is required" });
 
   const tags = parseTags(name || "");
-  const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name || "")}`;
+  const magnet = buildMagnet(infoHash, name || "");
 
   // Try debrid if enabled — no WebTorrent fallback
   const debrid = getDebridProvider();

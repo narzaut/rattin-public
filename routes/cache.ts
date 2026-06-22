@@ -9,6 +9,8 @@ export default function cacheRoutes(app: Express, ctx: ServerContext): void {
   const client = () => ctx.client;
 
   app.get("/api/cache/size", async (_req: Request, res: Response) => {
+    res.removeHeader("ETag");
+    res.setHeader("Cache-Control", "no-store");
     const bytes = await dirSize(ctx.DOWNLOAD_PATH);
     res.json({ bytes, formatted: formatBytes(bytes) });
   });
@@ -16,20 +18,32 @@ export default function cacheRoutes(app: Express, ctx: ServerContext): void {
   app.delete("/api/cache", async (_req: Request, res: Response) => {
     log("info", "Manual cache clear requested");
 
-    // Destroy all active torrents first — they hold file handles that prevent
-    // deletion on Windows (EBUSY) and cause silent failures.
+    // Destroy all active torrents — they hold file handles that prevent
+    // deletion on Windows (EBUSY). destroy() is async: the 'close' event
+    // fires synchronously BEFORE file handles are closed. The callback is
+    // the real signal that the store (file descriptors) is destroyed.
     const torrents = [...client().torrents];
-    for (const torrent of torrents) {
-      try {
-        torrent.destroy({ destroyStore: false });
-        log("info", "Destroyed torrent for cache clear", { name: torrent.name });
-      } catch (err) {
-        log("warn", "Failed to destroy torrent", { name: torrent.name, error: (err as Error).message });
-      }
-    }
+    await Promise.all(torrents.map((torrent) => {
+      return new Promise<void>((resolve) => {
+        const done = () => {
+          log("info", "Destroyed torrent for cache clear", { name: torrent.name });
+          resolve();
+        };
+        try {
+          (torrent.destroy as (opts: { destroyStore: boolean }, cb?: () => void) => void)({ destroyStore: true }, done);
+        } catch (err) {
+          log("warn", "Failed to destroy torrent", { name: torrent.name, error: (err as Error).message });
+          resolve();
+        }
+      });
+    }));
 
     // Clear the download directory
-    await clearDir(ctx.DOWNLOAD_PATH);
+    try {
+      await clearDir(ctx.DOWNLOAD_PATH);
+    } catch (err) {
+      log("warn", "clearDir reported failures", { error: (err as Error).message });
+    }
 
     // Verify the directory is actually empty — report any remaining files
     const remaining = await dirSize(ctx.DOWNLOAD_PATH);

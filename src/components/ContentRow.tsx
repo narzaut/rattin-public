@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import MovieCard from "./MovieCard";
 import { checkAvailability } from "../lib/api";
 import { useRefetchOnRecovery } from "../lib/useRefetchOnRecovery";
+import { getHomeCache, setHomeCache } from "../lib/home-cache";
 import "./ContentRow.css";
 
 interface ContentRowProps {
@@ -14,22 +15,33 @@ interface ContentRowProps {
 export default function ContentRow({ title, fetchFn, filterAvailability = false }: ContentRowProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[] | null>(null);
+  const [itemWarnings, setItemWarnings] = useState<Record<number, string>>({});
   const [recoveryKey, setRecoveryKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useRefetchOnRecovery(useCallback(() => setRecoveryKey((k) => k + 1), []));
 
   useEffect(() => {
+    // Instant render from frontend cache (survives app restarts)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cached = getHomeCache<any>(`row:${title}`);
+    if (cached) setItems(cached.results || []);
+
     let cancelled = false;
+    setItemWarnings({});
     fetchFn()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then(async (data: any) => {
         if (cancelled) return;
+        setHomeCache(`row:${title}`, data);
         const results = data.results || [];
         if (!filterAvailability || results.length === 0) {
           setItems(results);
           return;
         }
+        // Render immediately — don't block on availability check.
+        // Unavailable items are filtered out after the check returns.
+        setItems(results);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const batch = results.map((r: any) => ({
           id: r.id,
@@ -37,13 +49,24 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
           year: parseInt((r.release_date || r.first_air_date || "").slice(0, 4)) || undefined,
           type: r.media_type || (r.first_air_date ? "tv" : "movie"),
         }));
-        const available = await checkAvailability(batch);
+        const { available, warnings } = await checkAvailability(batch);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (!cancelled) setItems(results.filter((r: any) => available.has(r.id)));
+        if (!cancelled) {
+          setItems(results.filter((r: any) => available.has(r.id)));
+          // Map per-item warnings from batch index to item ID
+          if (warnings) {
+            const byId: Record<number, string> = {};
+            for (const [idx, text] of Object.entries(warnings)) {
+              const item = batch[Number(idx)];
+              if (item) byId[item.id] = text;
+            }
+            setItemWarnings(byId);
+          }
+        }
       })
       .catch(() => { if (!cancelled) setItems([]); });
     return () => { cancelled = true; };
-  }, [fetchFn, recoveryKey]);
+  }, [fetchFn, recoveryKey, title]);
 
   function scroll(dir: number) {
     const el = scrollRef.current;
@@ -54,7 +77,9 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
 
   return (
     <div className="content-row">
-      <h2 className="content-row-title">{title}</h2>
+      <div className="content-row-header">
+        <h2 className="content-row-title">{title}</h2>
+      </div>
       <div className="content-row-wrapper">
         <button className="content-row-arrow left" onClick={() => scroll(-1)}>&lsaquo;</button>
         <div className="content-row-scroll" ref={scrollRef}>
@@ -64,7 +89,11 @@ export default function ContentRow({ title, fetchFn, filterAvailability = false 
                   <div className="movie-card-poster skeleton" />
                 </div>
               ))
-            : items.map((item) => <MovieCard key={item.id} item={item} />)}
+            : items.map((item) => {
+                const persisted = itemWarnings[item.id]
+                  || (() => { try { return sessionStorage.getItem(`quality:${item.id}`) || undefined; } catch { return undefined; } })();
+                return <MovieCard key={item.id} item={item} warning={persisted} />;
+              })}
         </div>
         <button className="content-row-arrow right" onClick={() => scroll(1)}>&rsaquo;</button>
       </div>

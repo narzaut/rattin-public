@@ -448,8 +448,8 @@
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
-/* ── Torrent info ── */
-.remote-torrent-info {
+/* ── Stream info ── */
+.remote-stream-info {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,35 +460,13 @@
   flex-shrink: 0;
 }
 
-.remote-torrent-info span {
+.remote-stream-info span {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-/* ── Split row (two-column layout) ── */
-.remote-split-row {
-  width: 100%;
-  max-width: 400px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-shrink: 0;
-}
 
-.remote-split-row > * {
-  flex: 1;
-  min-width: 0;
-}
-
-/* ── Volume ── */
-.remote-volume-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  flex-shrink: 0;
-}
 
 .remote-volume-slider {
   flex: 1;
@@ -524,12 +502,6 @@
   cursor: pointer;
 }
 
-/* ── Subtitle select ── */
-.remote-sub-row {
-  width: 100%;
-  max-width: 400px;
-  flex-shrink: 0;
-}
 
 .remote-sub-select {
   width: 100%;
@@ -552,44 +524,6 @@
   background: var(--bg-base);
 }
 
-.remote-sub-size {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.remote-sub-size-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: color var(--transition), border-color var(--transition);
-}
-
-.remote-sub-size-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--accent);
-}
-
-.remote-sub-size-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.remote-sub-size-val {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  min-width: 28px;
-  text-align: center;
-}
-
-.remote-sub-size-val.active {
-  color: var(--accent, #e8a0bf);
-}
 
 /* ── Bottom actions ── */
 .remote-bottom-row {
@@ -747,69 +681,6 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Next Episode ── */
-.remote-next-episode {
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.remote-next-episode svg {
-  margin-left: auto;
-  opacity: 0.4;
-  flex-shrink: 0;
-}
-
-.remote-next-episode:active:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-}
-
-.remote-next-episode:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.remote-next-episode-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.remote-binge-toggle {
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  transition: all var(--transition);
-  margin-top: 8px;
-}
-
-.remote-binge-toggle.on {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.remote-binge-toggle:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 .remote-binge-beta {
   display: inline-block;
@@ -838,13 +709,6 @@
   gap: 4px;
 }
 
-.remote-binge-panel-header {
-  font-weight: 600;
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-}
 
 .remote-binge-help {
   margin-top: 6px;
@@ -944,24 +808,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Source Picker ── */
-.remote-source-toggle {
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all var(--transition);
-}
-
-.remote-source-toggle:active {
-  transform: scale(0.98);
-}
 
 .remote-sources-panel {
   width: 100%;
@@ -1030,51 +876,11 @@
   gap: 4px;
 }
 
-.remote-source-seed-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green, #22c55e);
-}
-
 .remote-source-size {
   font-size: 10px;
   color: var(--text-secondary);
 }
 
-/* ── Episodes toggle button ── */
-.remote-episodes-toggle {
-  width: 100%;
-  max-width: 400px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all var(--transition);
-  flex-shrink: 0;
-}
-
-.remote-episodes-toggle:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.remote-episodes-toggle:disabled {
-  opacity: 0.4;
-}
-
-.remote-episodes-current {
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
 
 /* ── Episodes panel ── */
 .remote-episodes-panel {

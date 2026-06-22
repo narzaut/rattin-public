@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile } from "../lib/api";
+import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus, checkAvailability } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
 import { useRemoteMode } from "../lib/PlayerContext";
 import { waitForBridge, mpvSetPoster, mpvSetTitle, mpvSetLoading, mpvSetLoadingStatus } from "../lib/native-bridge";
@@ -37,6 +37,9 @@ export default function Detail() {
   const [showPicker, setShowPicker] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [streams, setStreams] = useState<any[] | null>(null);
+  const [hasAnySource, setHasAnySource] = useState<boolean | null>(null);  // null=checking, true=available, false=unavailable
+  const [availabilityWarning, setAvailabilityWarning] = useState<string>("");
+  const [pluginName, setPluginName] = useState<string>("");
   const [pickerSeason, setPickerSeason] = useState<number | undefined>(undefined);
   const [pickerEpisode, setPickerEpisode] = useState<number | undefined>(undefined);
   const [expandedEps, setExpandedEps] = useState(new Set<number>());
@@ -71,6 +74,16 @@ export default function Detail() {
     setResumePoint(null);
   }, [id, type]);
 
+  // Load plugin name for source picker attribution
+  useEffect(() => {
+    getPluginStatus().then((statuses) => {
+      const name = Array.isArray(statuses)
+        ? statuses.find((s) => s.capability === "search" && s.plugin)?.plugin?.name || ""
+        : (statuses as any).plugin?.name || "";
+      setPluginName(name);
+    }).catch(() => {});
+  }, []);
+
   // Detect flat-season anime and fetch episode groups
   useEffect(() => {
     if (type !== "tv" || !data || !id) return;
@@ -95,6 +108,43 @@ export default function Detail() {
     fetcher(id!).then((d) => { if (!cancelled) setData(d); }).catch(() => {});
     return () => { cancelled = true; };
   }, [id, type, recoveryKey]);
+
+  // Check if any sources exist for this title (plugin-driven signal)
+  useEffect(() => {
+    if (!data || !id) return;
+    const title = data.title || data.name;
+    const year = parseInt((data.release_date || data.first_air_date || "").slice(0, 4)) || undefined;
+    if (!title) return;
+    let cancelled = false;
+    setHasAnySource(null);
+    setAvailabilityWarning("");
+    // Restore persisted warning from a previous visit (stored when the search
+    // pipeline found only low-quality sources after scoring).
+    try {
+      const stored = sessionStorage.getItem(`quality:${id}`);
+      if (stored) setAvailabilityWarning(stored);
+    } catch {}
+    checkAvailability([{ id, title, year, type: type || "movie" }]).then(({ available, warning }) => {
+      if (cancelled) return;
+      setHasAnySource(available.has(id));
+      if (warning) {
+        setAvailabilityWarning(warning);
+        try { sessionStorage.setItem(`quality:${id}`, warning); } catch {}
+      }
+    }).catch(() => {
+      if (!cancelled) setHasAnySource(true); // fail open
+    });
+    // Run a scored search for quality warning — the availability check uses
+    // raw results (noisy for single-word titles). Scored pipeline filters noise.
+    const imdbId = data.imdb_id || (data as any).external_ids?.imdb_id || undefined;
+    searchStreams(title, year, type || "movie", undefined, undefined, imdbId).then(({ warning }) => {
+      if (!cancelled && warning) {
+        setAvailabilityWarning(warning);
+        try { sessionStorage.setItem(`quality:${id}`, warning); } catch {}
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [data, id, type]);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,7 +234,11 @@ export default function Detail() {
       const title = data.title || data.name;
       const year = parseInt((data.release_date || data.first_air_date || "").slice(0, 4)) || undefined;
       const imdbId = data.imdb_id || data.external_ids?.imdb_id || undefined;
-      const results = await searchStreams(title, year, type, season, episode, imdbId);
+      const { results, warning } = await searchStreams(title, year, type, season, episode, imdbId);
+      if (warning) {
+        setAvailabilityWarning(warning);
+        try { sessionStorage.setItem(`quality:${id}`, warning); } catch {}
+      }
       setStreams(results);
     } catch (err: unknown) {
       if ((err as Error).message === "no_source") {
@@ -242,7 +296,7 @@ export default function Detail() {
       waitForBridge().then(() => {
         if (data.poster_path) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${data.poster_path}`);
         mpvSetTitle(displayTitle(pickerSeason, pickerEpisode));
-        mpvSetLoadingStatus("Starting stream...");
+        mpvSetLoadingStatus("Loading...");
         mpvSetLoading(true);
       });
     }
@@ -308,7 +362,7 @@ export default function Detail() {
         waitForBridge().then(() => {
           if (data.poster_path) mpvSetPoster(`https://image.tmdb.org/t/p/w1280${data.poster_path}`);
           mpvSetTitle(displayTitle(season, episode));
-          mpvSetLoadingStatus("Finding best stream...");
+          mpvSetLoadingStatus(pluginName ? `Searching via ${pluginName}...` : "Searching...");
           mpvSetLoading(true);
         });
       }
@@ -316,7 +370,11 @@ export default function Detail() {
       (window as any).__rattinCancelPlay = false;
 
       // Search for streams via the plugin
-      const results = await searchStreams(title, year, type, season, episode, imdbId);
+      const { results, warning } = await searchStreams(title, year, type, season, episode, imdbId);
+      if (warning) {
+        setAvailabilityWarning(warning);
+        try { sessionStorage.setItem(`quality:${id}`, warning); } catch {}
+      }
       if ((window as any).__rattinCancelPlay) { (window as any).__rattinCancelPlay = false; setPlayState(null); return; }
       if (!results || results.length === 0) {
         throw new Error("not_found");
@@ -399,8 +457,8 @@ export default function Detail() {
         <div className="detail-backdrop-overlay" />
       </div>
       <div className="detail-content">
-        <button className="back-btn" onClick={() => navigate(-1)}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <button className="app-back-link" onClick={() => navigate(-1)}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
           </svg>
           Back
@@ -414,15 +472,18 @@ export default function Detail() {
             )}
           </div>
           <div className="detail-info">
-            <h1>{title}</h1>
+            <span className="app-eyebrow">{type === "tv" ? "TV series" : "Film"}</span>
+            <h1 className="page-title">{title}</h1>
             <div className="detail-meta">
-              {year && <span>{year}</span>}
-              {runtime && <span>{runtime}</span>}
-              {seasons && <span>{seasons.length} Season{seasons.length !== 1 ? "s" : ""}</span>}
+              {year && <span className="app-chip is-accent">{year}</span>}
+              {runtime && <span className="app-chip">{runtime}</span>}
+              {seasons && <span className="app-chip">{seasons.length} Season{seasons.length !== 1 ? "s" : ""}</span>}
               {data.vote_average > 0 && (
-                <span className="detail-rating" style={{ color: ratingColor(data.vote_average) }}>
+                <span className="app-chip is-accent" style={{ color: ratingColor(data.vote_average) }}>
                   ★ {data.vote_average.toFixed(1)}
-                  <span className="detail-votes">({data.vote_count?.toLocaleString()})</span>
+                  <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 2 }}>
+                    ({data.vote_count?.toLocaleString()})
+                  </span>
                 </span>
               )}
             </div>
@@ -440,34 +501,37 @@ export default function Detail() {
             </div>
             <p className="detail-overview">{data.overview}</p>
             <div className="detail-actions">
-              <button
-                className="detail-play-btn"
-                onClick={() => {
-                  if (type === "tv" && isValidResumePoint(resumePoint, seasons)) {
-                    handlePlay(resumePoint.season, resumePoint.episode);
-                  } else if (type === "tv") {
-                    handlePlay(1, 1);
-                  } else {
-                    handlePlay();
-                  }
-                }}
-                disabled={playState === "loading"}
-              >
-                {playState === "loading" ? (
-                  "Finding best stream..."
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                    {type === "tv" && isValidResumePoint(resumePoint, seasons)
-                      ? `Resume S${resumePoint.season}E${resumePoint.episode}`
-                      : type === "movie" && resumePoint?.position > 0
-                        ? "Resume"
-                        : "Play"}
-                  </>
-                )}
-              </button>
+              {hasAnySource === false ? (
+                <button className="detail-play-btn is-muted" disabled>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Not yet available
+                </button>
+              ) : (
+                <span className="detail-play-wrap">
+                  <button
+                    className="detail-play-btn"
+                    onClick={() => {
+                      if (type === "tv" && isValidResumePoint(resumePoint, seasons)) {
+                        handlePlay(resumePoint.season, resumePoint.episode);
+                      } else if (type === "tv") {
+                        handlePlay(1, 1);
+                      } else {
+                        handlePlay();
+                      }
+                    }} disabled={playState === "loading" || hasAnySource === null}
+                  >
+                    {playState === "loading" ? "Searching..." : <><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>{type === "tv" && isValidResumePoint(resumePoint, seasons) ? `Resume S${resumePoint.season}E${resumePoint.episode}` : type === "movie" && resumePoint?.position > 0 ? "Resume" : "Play"}</>}
+                  </button>
+                  {availabilityWarning && (
+                    <span className="detail-quality-line">
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                      Low quality sources
+                    </span>
+                  )}
+                </span>
+              )}
               <button
                 className={`detail-save-btn${isSaved ? " saved" : ""}`}
                 onClick={() => {
@@ -491,7 +555,7 @@ export default function Detail() {
                   onClick={() => openPicker()}
                   disabled={playState === "loading"}
                 >
-                  Pick Source
+                  Other versions
                 </button>
               )}
               {trailer && (
@@ -506,21 +570,23 @@ export default function Detail() {
               )}
             </div>
             {playState === "error" && (
-              <div className="detail-error-box">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--red)">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+              <div className="app-status-bar is-error">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <div>
-                  <p className="detail-error-title">
-                    {playError === "not_found" ? "No streams available" : "Something went wrong"}
-                  </p>
-                  <p className="detail-error-sub">
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <strong style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    {playError === "not_found" ? "No matches yet" : "Something went wrong"}
+                  </strong>
+                  <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 400 }}>
                     {playError === "not_found"
-                      ? "We couldn't find a good source for this title right now. Try again later or check a different release."
-                      : "There was a problem setting up the stream. Please try again in a moment."}
-                  </p>
+                      ? "Nothing playable is available for this title right now. Try again later."
+                      : "There was a problem starting playback. Please try again in a moment."}
+                  </span>
                 </div>
-                <button className="detail-error-retry" onClick={() => { setPlayState(null); setPlayError(""); }}>
+                <button className="settings-btn-inline" onClick={() => { setPlayState(null); setPlayError(""); }}>
                   Dismiss
                 </button>
               </div>
@@ -530,9 +596,10 @@ export default function Detail() {
 
         {type === "tv" && seasons && (
           <div className="detail-seasons">
-            <div className="detail-season-header">
+            <div className="section-header">
               <h3>Episodes</h3>
               <select
+                className="settings-select"
                 value={selectedSeason}
                 onChange={(e) => {
                   const s = Number(e.target.value);
@@ -623,14 +690,15 @@ export default function Detail() {
                         <button
                           className="episode-pick"
                           onClick={() => openPicker(selectedSeason, ep.episode_number)}
-                          title="Pick source"
+                          title={hasAnySource === false ? "Not yet available" : "Other versions"}
+                          disabled={hasAnySource === false}
                         >
-                          Pick Source
+                          {hasAnySource === false ? "Not available" : "Other versions"}
                         </button>
                         <button
                           className="episode-play"
                           onClick={() => handlePlay(selectedSeason, ep.episode_number)}
-                          disabled={playState === "loading"}
+                  disabled={playState === "loading" || hasAnySource === false}
                         >
                           &#9654;
                         </button>
@@ -656,7 +724,9 @@ export default function Detail() {
 
         {cast && cast.length > 0 && (
           <div className="cast-section">
-            <h3 className="cast-header">Cast</h3>
+            <div className="section-header">
+              <h3>Cast</h3>
+            </div>
             <div className="cast-grid">
               {(castExpanded ? cast : cast.slice(0, 6)).map((c: any) => (
                 <div key={c.id} className="cast-card">
@@ -686,7 +756,7 @@ export default function Detail() {
           <div className="reviews-section">
             {reviews.reddit.length > 0 && (
               <div className="reviews-block">
-                <div className="reviews-header">
+                <div className="section-header">
                   <h3>Reddit Discussions</h3>
                 </div>
                 <div className="reddit-list">
@@ -733,7 +803,7 @@ export default function Detail() {
 
             {reviews.reviews.length > 0 && (
               <div className="reviews-block">
-                <div className="reviews-header">
+                <div className="section-header">
                   <h3>Reviews</h3>
                   {reviews.imdbId && (
                     <a
@@ -742,7 +812,7 @@ export default function Detail() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Read on IMDb
+                      Read on IMDb →
                     </a>
                   )}
                 </div>
@@ -799,6 +869,7 @@ export default function Detail() {
           streams={streams}
           onPick={handlePickStream}
           onClose={() => setShowPicker(false)}
+          pluginName={pluginName}
         />
       )}
       {showPluginPrompt && (

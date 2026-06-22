@@ -58,13 +58,26 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.75);
+  font-variant-numeric: tabular-nums;
+  background: rgba(5, 5, 7, 0.85);
+  color: var(--text-primary);
   padding: 3px 8px;
-  border-radius: var(--radius-xs);
-  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
   letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 2;
+}
+
+.movie-card-rating::before {
+  content: "★";
+  font-size: 10px;
+  line-height: 1;
 }
 
 .movie-card-info {
@@ -81,6 +94,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.1px;
+}
+
+.movie-card-quality-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 0 6px 0 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  color: #b8952e;
+  z-index: 2;
 }
 
 .movie-card-year {
