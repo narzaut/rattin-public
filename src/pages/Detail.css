@@ -169,6 +169,20 @@
   cursor: default;
 }
 
+.detail-quality-notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: #b8952e;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(184, 149, 46, 0.06);
+  border: 1px solid rgba(184, 149, 46, 0.13);
+  margin-bottom: 4px;
+}
+
 .detail-quality-pill {
   display: inline-flex;
   align-items: center;
