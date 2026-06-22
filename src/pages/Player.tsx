@@ -241,7 +241,7 @@ export default function Player() {
       episodeInfoRef.current = state?.type ? { mediaType: state.type, season: 0, episode: 0, seasonEpisodeCount: 0, tmdbId: state.tmdbId ?? undefined, imdbId: state.imdbId ?? undefined, posterPath: state.posterPath ?? undefined } : null;
     }
     return () => { episodeInfoRef.current = null; };
-  }, [state, episodeInfoRef]);
+  }, [state, active]);
 
   // ── Binge coordinator (auto-skip, auto-advance, prefetch) ──
   const bingeCoordinatorRef = useRef<BingeCoordinator | null>(null);

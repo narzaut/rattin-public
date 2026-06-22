@@ -312,18 +312,29 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
               seasonEpisodeCount: value.seasonEpisodeCount, seasonCount: value.seasonCount, resumePosition: value.resumePosition,
             };
 
+            const meta = {
+              mediaType: value.type || "",
+              season: value.season != null ? Number(value.season) : 0,
+              episode: value.episode != null ? Number(value.episode) : 0,
+              seasonEpisodeCount: value.seasonEpisodeCount != null ? Number(value.seasonEpisodeCount) : 0,
+              tmdbId: value.tmdbId ?? undefined,
+              imdbId: value.imdbId ?? undefined,
+              seasonCount: value.seasonCount != null ? Number(value.seasonCount) : undefined,
+              posterPath: value.posterPath ?? undefined,
+            };
+
             if (wasOnPlayer) {
-              // Kill old player: navigate away to unmount Player, wait for mpv
-              // to fully stop (same lifecycle as pressing Stop), then spawn new player
               setSwitching(true);
               navigateRef.current?.("/", { replace: true });
               mpvStopAndWait().then(() => {
                 startStreamRef.current?.(value.infoHash, value.fileIndex, value.title, value.tags, value.debridStreamKey);
+                episodeInfoRef.current = meta;
                 navigateRef.current?.(`/play/${value.infoHash}/${value.fileIndex}`, { state: navState });
                 setSwitching(false);
               });
             } else {
               startStreamRef.current?.(value.infoHash, value.fileIndex, value.title, value.tags, value.debridStreamKey);
+              episodeInfoRef.current = meta;
               navigateRef.current?.(`/play/${value.infoHash}/${value.fileIndex}`, { state: navState });
             }
           }

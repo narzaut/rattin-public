@@ -386,7 +386,7 @@ export default function Detail() {
       if (best1080) best = best1080;
 
       // Play the selected torrent
-      const result = await playTorrent(best.infoHash, best.name, season, episode, best.fileIdx);
+      const result = await playTorrent(best.infoHash, best.name, season, episode);
       if ((window as any).__rattinCancelPlay) { (window as any).__rattinCancelPlay = false; setPlayState(null); return; }
       if (isRemote) {
         sendRemoteStart(result, result.tags, season, episode);

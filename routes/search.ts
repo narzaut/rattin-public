@@ -59,37 +59,10 @@ async function searchTVViaPlugin(
   const s = String(season).padStart(2, "0");
   const e = String(episode).padStart(2, "0");
   const episodeQuery = `${title} S${s}E${e}`;
-  const seasonQuery = `${title} S${s}`;
-  const titleQuery = title;
 
-  const batchResults = await pluginRegistry.searchBatch([
-    { query: episodeQuery, type: "tv", season, episode, imdbId },
-    { query: seasonQuery, type: "tv", season, imdbId },
-    { query: titleQuery, type: "tv", imdbId },
-  ]);
-
-  const [episodeResults, seasonResults, titleResults] = batchResults;
-  const filteredTitleResults = titleResults.filter((r) => coversTargetSeason(r.name, season));
-
-  const seen = new Map<string, SearchResult>();
-  for (const r of [...episodeResults, ...seasonResults, ...filteredTitleResults]) {
-    if (!r.infoHash) continue;
-    if (hasWrongEpisode(r.name, season, episode)) continue;
-
-    const existing = seen.get(r.infoHash);
-    if (!existing || r.seeders > existing.seeders) {
-      const sPad = String(Math.abs(season)).padStart(2, "0");
-      const ePad = String(Math.abs(episode)).padStart(2, "0");
-      const hasEp = new RegExp(`S${sPad}E${ePad}(?!\\d)`, "i").test(r.name)
-        || new RegExp(`S${Math.abs(season)}E${Math.abs(episode)}(?!\\d)`, "i").test(r.name);
-      const hasSsn = new RegExp(`S${s}(?!\\d)`, "i").test(r.name)
-        || /complete|full.season|season.\d|all.seasons/i.test(r.name)
-        || coversTargetSeason(r.name, season);
-      const isSeasonPack = !hasEp && hasSsn;
-      seen.set(r.infoHash, { ...r, leechers: 0, seasonPack: isSeasonPack });
-    }
-  }
-  return [...seen.values()];
+  return pluginRegistry.search({
+    query: episodeQuery, type: "tv", season, episode, imdbId,
+  });
 }
 
 app.post("/api/check-availability", async (req: Request, res: Response) => {
