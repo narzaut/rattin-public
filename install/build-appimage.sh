@@ -195,9 +195,9 @@ assemble_appdir() {
     # ffmpeg + ffprobe
     cp "$TOOLS_DIR/ffmpeg" "$TOOLS_DIR/ffprobe" "$APPDIR/usr/bin/"
 
-    # Node.js runtime (only bin/node — not the full distribution)
-    mkdir -p "$APPDIR/usr/share/rattin/node/bin"
-    cp "$TOOLS_DIR/node/bin/node" "$APPDIR/usr/share/rattin/node/bin/"
+    # Node.js runtime — full distribution (npm needs lib/ for native addon builds)
+    mkdir -p "$APPDIR/usr/share/rattin/node"
+    cp -a "$TOOLS_DIR/node/"* "$APPDIR/usr/share/rattin/node/"
 
     # Bundle server into single JS file
     local app_dest="$APPDIR/usr/share/rattin/app"
