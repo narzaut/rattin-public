@@ -30,8 +30,7 @@ and stays out of your way.
 🔍 TMDB discovery — trending, genres, search, trailers, cast<br>
 📱 Phone remote via QR scan — no app install, just point your camera<br>
 🔒 No account, no database, no cloud, no telemetry — nothing leaves your machine<br>
-⚡ Optional private cache — instant playback, full seeking, no peer exposure<br>
-🛡️ Optional per-app VPN *(WIP)* — WireGuard network isolation with built-in kill switch
+⚡ Optional private cache — instant playback, full seeking, no peer exposure
 
 ### :mag: Discovery
 
@@ -62,8 +61,6 @@ and stays out of your way.
 
 ### :shield: Privacy
 
-- **Private cache** - Optional integration with Real-Debrid or TorBox. You stream over HTTPS, your IP never joins the peer swarm.
-- **Per-app VPN isolation** *(WIP)* - WireGuard tunnel in a Linux network namespace. Only Rattin's traffic goes through the VPN — everything else on your system stays on your normal connection. Built-in kill switch: if the tunnel drops, connections die instead of leaking your real IP.
 - **No built-in tracking** - No signup, no analytics, no telemetry, no phone-home. The only external calls are TMDB (metadata) and the Rattin add-on registry.
 
 ---
@@ -78,7 +75,7 @@ One command:
 curl -fsSL "https://raw.githubusercontent.com/narzaut/rattin-public/main/install/install-native.sh" | bash
 ```
 
-Downloads the AppImage, creates a desktop entry, opens the firewall port for phone remote, and prompts for a free [TMDB API key](https://www.themoviedb.org/settings/api). Optionally configures WireGuard VPN during install. Shows up in your app launcher as "Rattin".
+Downloads the AppImage, creates a desktop entry, and opens the firewall port for phone remote. Shows up in your app launcher as "Rattin".
 
 To update, rerun the same command. To uninstall: add `--uninstall`.
 
@@ -91,39 +88,13 @@ Download the installer or portable ZIP from the [latest release](https://github.
 - **Rattin-x64-Setup.exe** — installer with Start Menu and desktop shortcuts
 - **Rattin-x64-Portable.zip** — extract and run, no install needed
 
-On first launch, go to Settings (gear icon) and enter a free [TMDB API key](https://www.themoviedb.org/settings/api).
-
 ---
 
 ## Configuration
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `TMDB_API_KEY` | Yes | Free API key from [themoviedb.org](https://www.themoviedb.org/settings/api) |
 | `PORT` | No | Server port (default: 9630) |
-
-### Private Cache Setup
-
-Rattin supports [Real-Debrid](https://real-debrid.com) and [TorBox](https://torbox.app) as private cache providers. They sit between you and the peer network — your traffic goes over HTTPS to them, never directly to other peers.
-
-1. Get an account with your preferred provider
-2. Copy your API token (Real-Debrid: [apitoken page](https://real-debrid.com/apitoken), TorBox: Settings → API)
-3. Open Rattin, open Settings → Streaming, select your provider, paste your key, click **Connect**
-4. Choose your mode:
-
-| Mode | Behavior |
-|------|----------|
-| **Always use cache** | Every play goes through the cache. Waits for a download if not already there. Best seeking, full privacy. |
-| **Cached only** | Use the cache when media is already there. Fall back to peer-to-peer for the rest (zero delay). |
-
-### VPN Setup (optional, Linux only)
-
-1. Get a WireGuard config from your VPN provider (Mullvad, ProtonVPN, IVPN, etc.)
-2. Place it at `~/.config/rattin/wg/wg0.conf`
-3. Start Rattin via the VPN supervisor: `./rattin-vpn` instead of the AppImage
-4. Toggle VPN on/off from the shield icon in the navbar
-
-The VPN isolates only Rattin's traffic in a Linux network namespace. Your browser, other apps, and system traffic stay on your normal connection.
 
 ---
 
@@ -146,13 +117,13 @@ The VPN isolates only Rattin's traffic in a Linux network namespace. Your browse
                |  +------+------+  |
                +---------+---------+
                          |
-            -------------+-------------
-                   Express API
-            ---------------------------
-               |           |           |           |
-         +-----+-----+ +--+---+ +-----+------+ +--+------+
-          | WebTorrent| |ffmpeg| |TMDB + Plugin| |Real-Debrid|
-         +-----------+ +------+ +-------------+ +-----------+
+             -------------+-------------
+                    Express API
+             ---------------------------
+                |           |           |
+          +-----+-----+ +--+---+ +-----+------+
+          | WebTorrent| |ffmpeg| |TMDB + Plugin|
+          +-----------+ +------+ +-------------+
 ```
 
 The React app runs inside Qt's WebEngineView. When a video plays, React sends the stream URL to mpv via QWebChannel. mpv renders the video in an OpenGL framebuffer object layered above the webview, with a QML controls overlay on top. Every format plays natively — no transcoding needed.
@@ -164,7 +135,6 @@ The React app runs inside Qt's WebEngineView. When a video plays, React sends th
 | Complete file on disk | Direct HTTP range requests to mpv |
 | Incomplete file | WebTorrent stream + piece prioritization to mpv |
 | Seeking in incomplete file | Keyframe index + prioritize pieces at target |
-| Debrid | HTTPS stream from Real-Debrid — full range support |
 
 ### Native Shell
 
@@ -188,13 +158,7 @@ The phone remote uses Server-Sent Events (SSE) for real-time communication:
 
 The app binds to `0.0.0.0` so phones on the same LAN can reach it. Firewall port 9630 is opened by the install script.
 
-Non-local API access is now scoped to an authenticated paired remote session. Browsing and playback-control routes are available to the phone after pairing, while config, VPN, and media-stream endpoints stay local-only on the desktop.
-
-### Privacy Architecture
-
-**Debrid path:** Magnet link → Real-Debrid API → server-held HTTPS download URL → internal stream handle → player. User's IP only visible to RD (encrypted HTTPS), never to the torrent swarm, and raw debrid URLs are not exposed as public API input.
-
-**VPN path:** `rattin-vpn` supervisor creates a Linux network namespace with a WireGuard tunnel. Node.js runs inside the namespace. All torrent traffic (peers, DHT, trackers) goes through the VPN. The browser connects to the API via a veth bridge (`10.199.199.0/24`). If the WireGuard tunnel drops, there's no fallback route — connections fail instead of leaking the real IP.
+Non-local API access is now scoped to an authenticated paired remote session. Browsing and playback-control routes are available to the phone after pairing, while config and media-stream endpoints stay local-only on the desktop.
 
 ### Tech Stack
 
@@ -203,12 +167,10 @@ Non-local API access is now scoped to an authenticated paired remote session. Br
 | Frontend | React 19, React Router 7, Vite 6 |
 | Backend | Express 5, Node.js 20+ |
 | Torrents | WebTorrent |
-| Debrid | Real-Debrid, TorBox |
 | Native Shell | Qt6, libmpv, QWebChannel, CMake |
 | Intro Detection | Chromaprint (fpcalc) + AniSkip API |
 | Metadata | TMDB API |
 | Remote | Server-Sent Events + QR (uqr) |
-| VPN | WireGuard + Linux network namespaces |
 
 ### Development
 
