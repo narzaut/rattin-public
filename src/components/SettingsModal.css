@@ -1125,7 +1125,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 14px 16px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color var(--transition), background var(--transition);
@@ -1133,7 +1133,7 @@
 
 .about-pillar:hover {
   border-color: var(--border-light);
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
 }
 
 .about-pillar-icon {
