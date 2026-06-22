@@ -22,7 +22,7 @@
       rgba(10, 10, 17, 0.25) 70%,
       rgba(10, 10, 17, 0.5) 85%
     );
-  box-shadow: inset 0 -120px 80px -40px var(--bg-deep);
+  box-shadow: inset 0 -160px 120px -20px var(--bg-deep);
 }
 
 /* Warm amber wash — only at the top/middle, NOT at the bottom edge */
