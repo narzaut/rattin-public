@@ -15,10 +15,26 @@
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(10, 10, 17, 0.25) 0%,
-    rgba(10, 10, 17, 0.65) 55%,
-    var(--bg-deep) 100%
+    transparent 15%,
+    rgba(10, 10, 17, 0.03) 30%,
+    rgba(10, 10, 17, 0.12) 50%,
+    rgba(10, 10, 17, 0.35) 70%,
+    rgba(10, 10, 17, 0.7) 85%,
+    var(--bg-deep) 96%
   );
+}
+
+/* Warm amber wash — top only, away from bottom edge */
+.detail-backdrop-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(201, 168, 76, 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
 }
 
 /* Warm amber wash */
