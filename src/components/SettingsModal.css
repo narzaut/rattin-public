@@ -1201,6 +1201,7 @@
 }
 
 .about-cta-text {
+  display: block;
   font-size: 0.9rem;
   color: var(--accent-bright);
   margin-top: 14px;
@@ -1210,10 +1211,19 @@
   border: 1px solid rgba(201, 168, 76, 0.12);
   text-align: center;
   letter-spacing: 0.2px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(201, 168, 76, 0.3);
+  transition: all var(--transition);
+}
+
+.about-cta-text:hover {
+  background: linear-gradient(135deg, rgba(201, 168, 76, 0.1), rgba(201, 168, 76, 0.04));
+  border-color: rgba(201, 168, 76, 0.25);
+  text-decoration-color: var(--accent-bright);
 }
 
 .about-cta-text .star {
-  display: inline-block;
   color: #e2c06d;
   margin-right: 2px;
   font-size: 1.05rem;

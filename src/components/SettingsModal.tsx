@@ -1127,7 +1127,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <BookIcon /> Read the docs
             </a>
           </div>
-          <p className="about-cta-text"><span className="star">&#9733;</span> Like Rattin? Drop a star on GitHub — it makes a difference.</p>
+          <a className="about-cta-text" href="https://github.com/narzaut/rattin-public" target="_blank" rel="noopener noreferrer"><span className="star">&#9733;</span> Enjoying Rattin? Drop a star on GitHub — it does make a difference.</a>
         </div>
 
         <div className="settings-section">
