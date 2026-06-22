@@ -1096,8 +1096,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             <div className="about-factsheet-label">Source</div>
             <div className="about-factsheet-value">
-              <a href="https://github.com/rattin-player/rattin-public" target="_blank" rel="noopener noreferrer">
-                <ExternalIcon /> github.com/rattin-player/rattin-public
+              <a href="https://github.com/narzaut/rattin-public" target="_blank" rel="noopener noreferrer">
+                <ExternalIcon /> github.com/narzaut/rattin-public
               </a>
             </div>
           </div>
@@ -1115,13 +1115,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             File a bug, request a feature, or read what changed. Issues get read by a human.
           </p>
           <div className="about-links">
-            <a className="about-link" href="https://github.com/rattin-player/rattin-public/issues" target="_blank" rel="noopener noreferrer">
+            <a className="about-link" href="https://github.com/narzaut/rattin-public/issues" target="_blank" rel="noopener noreferrer">
               <BugIcon /> Report an issue
             </a>
-            <a className="about-link" href="https://github.com/rattin-player/rattin-public/releases" target="_blank" rel="noopener noreferrer">
+            <a className="about-link" href="https://github.com/narzaut/rattin-public/releases" target="_blank" rel="noopener noreferrer">
               <TagIcon /> Release notes
             </a>
-            <a className="about-link" href="https://github.com/rattin-player/rattin-public#readme" target="_blank" rel="noopener noreferrer">
+            <a className="about-link" href="https://github.com/narzaut/rattin-public#readme" target="_blank" rel="noopener noreferrer">
               <BookIcon /> Read the docs
             </a>
           </div>

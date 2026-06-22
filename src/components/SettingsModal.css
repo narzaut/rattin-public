@@ -226,7 +226,7 @@
 }
 
 .settings-tab-lede {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.55;
   margin-top: 6px;
@@ -254,7 +254,7 @@
 
 .settings-section-header h3 {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -262,7 +262,7 @@
 }
 
 .settings-section-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.55;
 }
@@ -321,7 +321,7 @@
 }
 
 .settings-info-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   font-weight: 500;
   display: flex;
@@ -331,7 +331,7 @@
 }
 
 .settings-info-value {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   font-weight: 500;
   text-align: right;
