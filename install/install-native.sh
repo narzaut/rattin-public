@@ -38,13 +38,10 @@ die()  { err "$*"; exit 1; }
 # Argument parsing
 # ---------------------------------------------------------------------------
 UNINSTALL=false
-TMDB_KEY=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --uninstall)    UNINSTALL=true; shift ;;
-        --tmdb-key)     TMDB_KEY="$2"; shift 2 ;;
-        --tmdb-key=*)   TMDB_KEY="${1#*=}"; shift ;;
         --help|-h)
             echo "Usage: install-native.sh [OPTIONS]"
             echo ""
@@ -52,7 +49,6 @@ while [ $# -gt 0 ]; do
             echo ""
             echo "Options:"
             echo "  --uninstall        Remove Rattin"
-            echo "  --tmdb-key KEY     Provide TMDB API key"
             echo "  --help, -h         Show this help message"
             exit 0
             ;;
@@ -148,57 +144,10 @@ log "Symlinked: $BIN_DIR/rattin"
 mkdir -p "$CONFIG_DIR"
 
 if [ ! -f "$CONFIG_DIR/.env" ]; then
-    if [ -n "$TMDB_KEY" ]; then
-        echo "TMDB_API_KEY=$TMDB_KEY" > "$CONFIG_DIR/.env"
-        log "Created config with provided TMDB key"
-    else
-        # Prompt interactively via /dev/tty (stdin is the pipe when curl | bash)
-        if [ -e /dev/tty ]; then
-            echo ""
-            printf "${CYAN}A free TMDB API key is required for browsing movies and TV shows.${NC}\n"
-            printf "${CYAN}Get one at: https://www.themoviedb.org/settings/api${NC}\n"
-            printf "${CYAN}Enter your TMDB API key (or press Enter to skip):${NC} "
-            read -r key < /dev/tty || key=""
-            echo ""
-            if [ -n "$key" ]; then
-                echo "TMDB_API_KEY=$key" > "$CONFIG_DIR/.env"
-                log "Created config with TMDB key"
-            else
-                echo "TMDB_API_KEY=" > "$CONFIG_DIR/.env"
-                warn "No TMDB key provided — browsing won't work until you add one to $CONFIG_DIR/.env"
-            fi
-        else
-            echo "TMDB_API_KEY=" > "$CONFIG_DIR/.env"
-            warn "No TMDB key provided — add one to $CONFIG_DIR/.env"
-        fi
-    fi
+    echo "" > "$CONFIG_DIR/.env"
+    log "Created config"
 else
     log "Config already exists, keeping it"
-fi
-
-# ---------------------------------------------------------------------------
-# VPN directory setup (for optional WireGuard per-app isolation)
-# ---------------------------------------------------------------------------
-mkdir -p "$CONFIG_DIR/wg"
-chmod 700 "$CONFIG_DIR/wg"
-
-# Optional: prompt for WireGuard config
-if [ ! -f "$CONFIG_DIR/wg/wg0.conf" ] && [ -e /dev/tty ]; then
-    echo ""
-    printf "${CYAN}Rattin supports optional per-app VPN isolation (WireGuard).${NC}\n"
-    printf "${CYAN}This routes only Rattin's torrent traffic through a VPN tunnel.${NC}\n"
-    printf "${CYAN}Path to a WireGuard .conf file (or press Enter to skip):${NC} "
-    read -r wg_path < /dev/tty || wg_path=""
-    echo ""
-    if [ -n "$wg_path" ] && [ -f "$wg_path" ]; then
-        cp "$wg_path" "$CONFIG_DIR/wg/wg0.conf"
-        chmod 600 "$CONFIG_DIR/wg/wg0.conf"
-        log "WireGuard config installed — VPN toggle available in the app"
-    elif [ -n "$wg_path" ]; then
-        warn "File not found: $wg_path — skipping VPN setup"
-    else
-        log "Skipping VPN setup — you can add a WireGuard config later at $CONFIG_DIR/wg/wg0.conf"
-    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -303,8 +252,6 @@ echo ""
 echo "  AppImage: $APP_DIR/$APPIMAGE_NAME"
 echo "  Binary:   $BIN_DIR/rattin"
 echo "  Config:   $CONFIG_DIR/.env"
-echo "  Debrid:   Configure in Settings (gear icon) inside the app"
-echo "  VPN:      Place a WireGuard .conf at $CONFIG_DIR/wg/wg0.conf"
 echo ""
 echo "  To update:    re-run this installer"
 echo "  To uninstall: bash <(curl -fsSL <url>/install-native.sh) --uninstall"
