@@ -75,18 +75,18 @@ and stays out of your way.
 One command:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/rattin-player/rattin-public/main/install/install-native.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/narzaut/rattin-public/main/install/install-native.sh" | bash
 ```
 
 Downloads the AppImage, creates a desktop entry, opens the firewall port for phone remote, and prompts for a free [TMDB API key](https://www.themoviedb.org/settings/api). Optionally configures WireGuard VPN during install. Shows up in your app launcher as "Rattin".
 
 To update, rerun the same command. To uninstall: add `--uninstall`.
 
-You can also grab the AppImage directly from the [latest release](https://github.com/rattin-player/rattin-public/releases/latest) and run it manually.
+You can also grab the AppImage directly from the [latest release](https://github.com/narzaut/rattin-public/releases/latest) and run it manually.
 
 ### :window: Windows
 
-Download the installer or portable ZIP from the [latest release](https://github.com/rattin-player/rattin-public/releases/latest):
+Download the installer or portable ZIP from the [latest release](https://github.com/narzaut/rattin-public/releases/latest):
 
 - **Rattin-x64-Setup.exe** — installer with Start Menu and desktop shortcuts
 - **Rattin-x64-Portable.zip** — extract and run, no install needed
