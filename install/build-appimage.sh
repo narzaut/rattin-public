@@ -113,7 +113,7 @@ download_tools() {
     # Static ffmpeg + ffprobe
     if [ ! -x "$TOOLS_DIR/ffmpeg" ]; then
         log "Downloading static ffmpeg..."
-        curl -fSL "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
+        curl -fSL --retry 3 --retry-delay 5 "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
             -o "$TOOLS_DIR/ffmpeg.tar.xz"
         # Extract only ffmpeg and ffprobe binaries
         tar -xf "$TOOLS_DIR/ffmpeg.tar.xz" -C "$TOOLS_DIR/" --strip-components=1 \

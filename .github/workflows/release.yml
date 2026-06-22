@@ -69,7 +69,7 @@ jobs:
           node-version: 20
 
       - name: Build AppImage
-        run: bash install/build-appimage.sh --clean
+        run: bash install/build-appimage.sh
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
