@@ -68,6 +68,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Cache build tools
+        uses: actions/cache@v4
+        with:
+          path: build-appimage/tools
+          key: appimage-tools-${{ hashFiles('install/build-appimage.sh') }}
+
       - name: Build AppImage
         run: bash install/build-appimage.sh
 

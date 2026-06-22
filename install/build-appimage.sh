@@ -70,7 +70,7 @@ download_tools() {
     # linuxdeploy
     if [ ! -x "$TOOLS_DIR/linuxdeploy" ]; then
         log "Downloading linuxdeploy..."
-        curl -fSL "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" \
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" \
             -o "$TOOLS_DIR/linuxdeploy"
         chmod +x "$TOOLS_DIR/linuxdeploy"
     else
@@ -80,7 +80,7 @@ download_tools() {
     # linuxdeploy Qt plugin
     if [ ! -x "$TOOLS_DIR/linuxdeploy-plugin-qt" ]; then
         log "Downloading linuxdeploy-plugin-qt..."
-        curl -fSL "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" \
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" \
             -o "$TOOLS_DIR/linuxdeploy-plugin-qt"
         chmod +x "$TOOLS_DIR/linuxdeploy-plugin-qt"
     else
@@ -90,9 +90,9 @@ download_tools() {
     # Node.js standalone (with checksum verification)
     if [ ! -x "$TOOLS_DIR/node/bin/node" ]; then
         log "Downloading Node.js v${NODE_VERSION}..."
-        curl -fSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        curl -fSL --retry 3 --retry-delay 5 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
             -o "$TOOLS_DIR/node.tar.xz"
-        curl -fSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+        curl -fSL --retry 3 --retry-delay 5 "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
             -o "$TOOLS_DIR/node.shasums"
         local expected_hash
         expected_hash="$(grep "node-v${NODE_VERSION}-linux-x64.tar.xz" "$TOOLS_DIR/node.shasums" | awk '{print $1}')"
