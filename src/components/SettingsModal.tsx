@@ -530,9 +530,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                             </button>
                           </div>
                         )}
-          </div>
-          <p className="about-cta-text">Enjoying Rattin? Drop a star on GitHub — it helps more than you'd think.</p>
-        </div>
+                      </div>
+                    </div>
                     {!isInstalled && (
                       <div className="plugin-row-action">
                         <button
@@ -1128,6 +1127,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <BookIcon /> Read the docs
             </a>
           </div>
+          <p className="about-cta-text">Enjoying Rattin? Drop a star on GitHub — it helps more than you'd think.</p>
         </div>
 
         <div className="settings-section">
