@@ -65,7 +65,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 16px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }

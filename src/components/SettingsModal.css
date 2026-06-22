@@ -291,7 +291,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -418,7 +418,7 @@
 
 .settings-input {
   padding: 11px 14px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   color: var(--text-primary);
@@ -446,7 +446,7 @@
 }
 
 .settings-select {
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
@@ -649,7 +649,7 @@
 .settings-skeleton-line {
   height: 38px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   animation: settings-skeleton-pulse 1.2s ease-in-out infinite;
 }
 
@@ -742,7 +742,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -800,7 +800,7 @@
   align-items: center;
   gap: 16px;
   padding: 14px 16px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color var(--transition), background var(--transition);
@@ -973,7 +973,7 @@
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 11px;
   color: var(--text-muted);
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   padding: 1px 7px;
   border-radius: 8px;
   font-weight: 500;
@@ -1058,7 +1058,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
 }
 
 .about-factsheet > .about-factsheet-label,
@@ -1175,7 +1175,7 @@
   align-items: center;
   gap: 7px;
   padding: 8px 14px;
-  background: var(--bg-deep);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12.5px;
