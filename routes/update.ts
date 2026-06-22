@@ -71,7 +71,7 @@ export default function updateRoutes(app: Express, ctx: ServerContext): void {
 
     try {
       const resp = await fetch(
-        "https://api.github.com/repos/rattin-player/rattin-public/releases?per_page=20",
+        "https://api.github.com/repos/narzaut/rattin-public/releases?per_page=20",
         { headers: { Accept: "application/vnd.github+json", "User-Agent": "rattin" } },
       );
       if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
