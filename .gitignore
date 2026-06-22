@@ -21,3 +21,4 @@ squashfs-root/
 .worktrees
 .pi/worktrees
 aqtinstall.log
+dev.sh
