@@ -1200,6 +1200,13 @@
   opacity: 1;
 }
 
+.about-cta-text {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+
 .about-credits {
   font-size: 11.5px;
   color: var(--text-muted);
