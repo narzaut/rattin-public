@@ -872,11 +872,10 @@
   cursor: pointer;
   font-family: inherit;
   transition: all var(--transition);
-  /* Stick to top when user scrolls past it, so they can collapse
-     without scrolling all the way back up. Only when expanded. */
+  /* ponytail: sticky under the fixed navbar, not under it */
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: 68px;
+  z-index: 90;
 }
 
 .recaps-toggle:hover {
@@ -1290,7 +1289,7 @@
   gap: 14px;
   /* Show one row only — card is ~197px (thumb 124 + meta 71 + border 2).
      Give buffer so channel/views text isn't clipped. */
-  max-height: 210px;
+  max-height: 218px;
   overflow: hidden;
 }
 
@@ -1401,6 +1400,9 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+  .recaps-toggle {
+    top: 56px;
+  }
   .recaps-search-row {
     flex-direction: column;
   }
@@ -1410,7 +1412,7 @@
   .recaps-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     /* Mobile card is shorter — 160×9/16 thumb + meta + padding */
-    max-height: 165px;
+    max-height: 178px;
   }
   .recap-featured {
     flex-direction: column;
