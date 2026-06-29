@@ -294,10 +294,6 @@ export interface TorrentResult {
   provider?: string;
 }
 
-export interface ScoredTorrent extends TorrentResult {
-  score: number;
-  tags: string[];
-}
 
 // ── Cache ─────────────────────────────────────────────────────────────
 

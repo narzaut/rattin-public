@@ -47,7 +47,6 @@ interface MpvEvents {
   onIsPlayingChanged: ((playing: boolean) => void) | null;
   onNativeSubChanged: ((mpvId: number) => void) | null;
   onNativeAudioChanged: ((mpvId: number) => void) | null;
-  onNativeVolumeChanged: ((percent: number) => void) | null;
   onNativeSubSizeChanged: ((size: number) => void) | null;
   onNativeSubDelayChanged: ((delay: number) => void) | null;
   onToggleSourcePanel: (() => void) | null;
@@ -92,7 +91,6 @@ export function waitForBridge(): Promise<void> {
           onIsPlayingChanged: null,
           onNativeSubChanged: null,
           onNativeAudioChanged: null,
-          onNativeVolumeChanged: null,
           onNativeSubSizeChanged: null,
           onNativeSubDelayChanged: null,
           onToggleSourcePanel: null,
@@ -119,9 +117,6 @@ export function waitForBridge(): Promise<void> {
         });
         bridge.nativeAudioChanged.connect((mpvId: number) => {
           if (window.mpvEvents?.onNativeAudioChanged) window.mpvEvents.onNativeAudioChanged(mpvId);
-        });
-        bridge.nativeVolumeChanged.connect((percent: number) => {
-          if (window.mpvEvents?.onNativeVolumeChanged) window.mpvEvents.onNativeVolumeChanged(percent);
         });
         bridge.nativeSubSizeChanged.connect((size: number) => {
           if (window.mpvEvents?.onNativeSubSizeChanged) window.mpvEvents.onNativeSubSizeChanged(size);
@@ -255,9 +250,6 @@ export function onNativeAudioChanged(cb: (mpvId: number) => void): void {
   if (window.mpvEvents) window.mpvEvents.onNativeAudioChanged = cb;
 }
 
-export function onNativeVolumeChanged(cb: (percent: number) => void): void {
-  if (window.mpvEvents) window.mpvEvents.onNativeVolumeChanged = cb;
-}
 
 export function onNativeSubSizeChanged(cb: (size: number) => void): void {
   if (window.mpvEvents) window.mpvEvents.onNativeSubSizeChanged = cb;
