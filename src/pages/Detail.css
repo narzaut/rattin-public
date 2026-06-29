@@ -29,7 +29,10 @@
   z-index: 1;
   margin-top: -200px;
   padding: 0 48px 48px;
-  animation: fadeUp 0.6s ease-out both;
+  /* ponytail: backwards (not both) so the transform doesn't persist
+     after the animation ends — a lingering transform creates a containing
+     block that breaks position:sticky on descendants. */
+  animation: fadeUp 0.6s ease-out backwards;
 }
 
 .detail-main {
@@ -869,6 +872,7 @@
   cursor: pointer;
   font-family: inherit;
   transition: all var(--transition);
+  /* default: not sticky — mobile-only when expanded */
 }
 
 .recaps-toggle:hover {
@@ -1389,6 +1393,25 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+  .recaps-toggle.expanded {
+    position: sticky;
+    top: var(--recaps-sticky-top, 56px);
+    z-index: 90;
+    transition: width 0.22s ease, margin 0.22s ease, padding 0.22s ease, border-radius 0.22s ease, background 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  }
+  .recaps-toggle.expanded.is-stuck {
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    background: rgba(15, 15, 24, 0.94);
+    backdrop-filter: blur(16px) saturate(1.05);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  }
   .recaps-search-row {
     flex-direction: column;
   }
