@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus, checkAvailability, fetchYoutubeSearch } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
@@ -107,9 +107,15 @@ export default function Detail() {
   const [recapLoading, setRecapLoading] = useState(false);
   const [selectedRecap, setSelectedRecap] = useState<any>(null);
   const [recapExpanded, setRecapExpanded] = useState(false);
+  const [recapStickyActive, setRecapStickyActive] = useState(false);
+  const [recapStickyTop, setRecapStickyTop] = useState(56);
   const [recapMinimized, setRecapMinimized] = useState(false);
   const [showMoreRecaps, setShowMoreRecaps] = useState(false);
+  const [visibleRecapCount, setVisibleRecapCount] = useState<number | null>(null);
   const [recapSeason, setRecapSeason] = useState(selectedSeason);
+  const recapsSectionRef = useRef<HTMLDivElement>(null);
+  const recapsToggleRef = useRef<HTMLButtonElement>(null);
+  const recapsGridRef = useRef<HTMLDivElement>(null);
   const [recoveryKey, setRecoveryKey] = useState(0);
   useRefetchOnRecovery(useCallback(() => setRecoveryKey((k) => k + 1), []));
   const [showPluginPrompt, setShowPluginPrompt] = useState(false);
@@ -503,6 +509,61 @@ export default function Detail() {
     setRecapSeason(selectedSeason);
   }, [selectedSeason]);
 
+  function getRecapStickyTop(): number {
+    const navbar = document.querySelector(".navbar") as HTMLElement | null;
+    return navbar?.getBoundingClientRect().bottom || 56;
+  }
+
+  useEffect(() => {
+    if (!recapExpanded) {
+      setRecapStickyActive(false);
+      return;
+    }
+    const media = window.matchMedia("(max-width: 768px)");
+    const updateSticky = () => {
+      const topOffset = getRecapStickyTop();
+      setRecapStickyTop(topOffset);
+      if (!media.matches) {
+        setRecapStickyActive(false);
+        return;
+      }
+      const section = recapsSectionRef.current;
+      const toggle = recapsToggleRef.current;
+      if (!section || !toggle) return;
+      const sectionRect = section.getBoundingClientRect();
+      const toggleRect = toggle.getBoundingClientRect();
+      const shouldStick = sectionRect.top <= topOffset && sectionRect.bottom > topOffset + toggleRect.height + 12;
+      setRecapStickyActive(shouldStick);
+    };
+    updateSticky();
+    window.addEventListener("scroll", updateSticky, { passive: true });
+    window.addEventListener("resize", updateSticky);
+    return () => {
+      window.removeEventListener("scroll", updateSticky);
+      window.removeEventListener("resize", updateSticky);
+    };
+  }, [recapExpanded]);
+
+  useLayoutEffect(() => {
+    if (!showMoreRecaps) {
+      setVisibleRecapCount(null);
+      return;
+    }
+    const measure = () => {
+      const grid = recapsGridRef.current;
+      if (!grid) return;
+      const cols = window.getComputedStyle(grid)
+        .gridTemplateColumns
+        .split(" ")
+        .filter(Boolean)
+        .length;
+      setVisibleRecapCount(Math.max(1, cols));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [showMoreRecaps, recapResults.length]);
+
   // Refresh recaps when the recap season changes
   useEffect(() => {
     setRecapResults([]);
@@ -516,6 +577,30 @@ export default function Detail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recapSeason]);
+
+  function handleRecapsToggle() {
+    if (!recapExpanded) {
+      setRecapExpanded(true);
+      if (recapResults.length === 0 && data) {
+        const q = `${data.name || data.title} season ${recapSeason} recap`;
+        setRecapQuery(q);
+        doRecapSearch(q);
+      }
+      return;
+    }
+
+    setRecapExpanded(false);
+    setRecapStickyActive(false);
+    setShowMoreRecaps(false);
+    setVisibleRecapCount(null);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const toggle = recapsToggleRef.current;
+      if (!toggle) return;
+      const topOffset = getRecapStickyTop();
+      const top = toggle.getBoundingClientRect().top + window.scrollY - topOffset;
+      window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+    }));
+  }
 
   if (!data) {
     return (
@@ -688,17 +773,12 @@ export default function Detail() {
 
         {/* ── Recaps (YouTube, for TV shows) ── */}
         {type === "tv" && data && (
-          <div className="recaps-section">
+          <div className="recaps-section" ref={recapsSectionRef}>
             <button
-              className={`recaps-toggle${recapExpanded ? " expanded" : ""}`}
-              onClick={() => {
-                setRecapExpanded(!recapExpanded);
-                if (!recapExpanded && recapResults.length === 0) {
-                  const q = `${data.name || data.title} season ${recapSeason} recap`;
-                  setRecapQuery(q);
-                  doRecapSearch(q);
-                }
-              }}
+              ref={recapsToggleRef}
+              className={`recaps-toggle${recapExpanded ? " expanded" : ""}${recapStickyActive ? " is-stuck" : ""}`}
+              style={{ ["--recaps-sticky-top" as string]: `${recapStickyTop}px` }}
+              onClick={handleRecapsToggle}
             >
               <div className="recaps-toggle-left">
                 <svg className="recaps-toggle-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -868,8 +948,8 @@ export default function Detail() {
                           </span>
                         </button>
                         {showMoreRecaps && (
-                          <div className="recaps-grid">
-                            {recapResults.slice(1).map((r: any) => (
+                          <div className="recaps-grid" ref={recapsGridRef}>
+                            {recapResults.slice(1, 1 + (visibleRecapCount ?? (recapResults.length - 1))).map((r: any) => (
                               <button
                                 key={r.videoId}
                                 className={`recap-card${selectedRecap?.videoId === r.videoId ? " active" : ""}`}

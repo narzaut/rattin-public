@@ -1284,10 +1284,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
-  /* Show one row only — card is ~197px (thumb 124 + meta 71 + border 2).
-     Give buffer so channel/views text isn't clipped. */
-  max-height: 218px;
-  overflow: hidden;
 }
 
 .recap-card {
@@ -1399,8 +1395,19 @@
 @media (max-width: 768px) {
   .recaps-toggle.expanded {
     position: sticky;
-    top: 56px;
+    top: var(--recaps-sticky-top, 56px);
     z-index: 90;
+    transition: width 0.22s ease, margin 0.22s ease, padding 0.22s ease, border-radius 0.22s ease, background 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  }
+  .recaps-toggle.expanded.is-stuck {
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
     background: rgba(15, 15, 24, 0.94);
     backdrop-filter: blur(16px) saturate(1.05);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
@@ -1413,8 +1420,6 @@
   }
   .recaps-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    /* Mobile card is shorter — 160×9/16 thumb + meta + padding */
-    max-height: 178px;
   }
   .recap-featured {
     flex-direction: column;
