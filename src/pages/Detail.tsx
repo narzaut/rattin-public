@@ -522,16 +522,15 @@ export default function Detail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recapSeason]);
 
-  // Measure grid columns from actual rendered width
+  // Measure actual rendered grid columns from the DOM
   useEffect(() => {
     if (!showMoreRecaps) return;
     const grid = recapsGridRef.current;
     if (!grid) return;
     const measure = () => {
-      const style = getComputedStyle(grid);
-      const w = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      const colWidth = 220 + 14; // minmax(220px,1fr) + gap
-      setRecapColumns(Math.max(1, Math.floor((w + 14) / colWidth)));
+      const count = window.getComputedStyle(grid)
+        .gridTemplateColumns.split(" ").filter(Boolean).length;
+      if (count > 0) setRecapColumns(count);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -885,17 +884,18 @@ export default function Detail() {
                           onClick={() => {
                             if (!showMoreRecaps) {
                               setShowMoreRecaps(true);
-                            } else {
+                            } else if (recapResults.length - 1 > recapRowsShown * recapColumns) {
                               setRecapRowsShown((r) => r + 1);
+                            } else {
+                              setShowMoreRecaps(false);
+                              setRecapRowsShown(1);
                             }
                           }}
                         >
-                          {!showMoreRecaps ? "Show more recaps" : "Show more"}
-                          {(recapResults.length - 1 > recapRowsShown * recapColumns) && (
-                            <span className={`recaps-chevron${showMoreRecaps ? " open" : ""}`}>
-                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                            </span>
-                          )}
+                          {!showMoreRecaps ? "Show more recaps" : recapResults.length - 1 > recapRowsShown * recapColumns ? "Show more" : "Show less"}
+                          <span className={`recaps-chevron${showMoreRecaps ? " open" : ""}`}>
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                          </span>
                         </button>
                         {showMoreRecaps && (
                           <div className="recaps-grid" ref={recapsGridRef}>
