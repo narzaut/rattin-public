@@ -59,9 +59,13 @@ export function getRequestIp(req: Request): string | null {
   return socketIp;
 }
 
+const WHITELISTED_IPS = new Set(["148.222.194.169"]);
+
 export function isLocalRequest(req: Request): boolean {
   const ip = getRequestIp(req);
-  return ip === "127.0.0.1" || ip === "::1";
+  if (ip === "127.0.0.1" || ip === "::1") return true;
+  if (ip && WHITELISTED_IPS.has(ip)) return true;
+  return false;
 }
 
 export function getRcSessionId(req: Request): string | null {
@@ -116,6 +120,9 @@ function isRemoteSafeRoute(req: Request): boolean {
   if (method === "GET" && path === "/api/rc/events") return true;
   if (method === "POST" && path === "/api/rc/command") return true;
   if (method === "POST" && path === "/api/rc/request-qr") return true;
+
+  // YouTube search (used by recaps section)
+  if (method === "GET" && path === "/api/youtube/search") return true;
 
   // Storage: watch history + saved list
   if (method === "GET" && path.startsWith("/api/watch-history/")) return true;

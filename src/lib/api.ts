@@ -164,6 +164,13 @@ export function fetchReviews(type: string, id: string | number): Promise<any> {
   return get(`/api/reviews/${type}/${id}`);
 }
 
+// YouTube search (for recaps)
+export async function fetchYoutubeSearch(query: string): Promise<any[]> {
+  const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+  const data = await res.json();
+  return data.results || [];
+}
+
 interface IntroParams {
   tmdbId?: string;
   season?: string | number;
