@@ -34,15 +34,3 @@ export async function startPrefetch(args: PrefetchArgs): Promise<Resolved | null
   return resolved;
 }
 
-export async function isDebridCached(
-  poll: () => Promise<boolean>,
-  timeoutMs = 10_000,
-  intervalMs = 1_000,
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await poll()) return true;
-    await new Promise(r => setTimeout(r, intervalMs));
-  }
-  return false;
-}
