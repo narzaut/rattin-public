@@ -164,6 +164,12 @@ export function fetchReviews(type: string, id: string | number): Promise<any> {
   return get(`/api/reviews/${type}/${id}`);
 }
 
+// YouTube search (for recaps)
+export async function fetchYoutubeSearch(query: string): Promise<any[]> {
+  const data = await get(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+  return data.results || [];
+}
+
 interface IntroParams {
   tmdbId?: string;
   season?: string | number;
@@ -246,15 +252,6 @@ export async function deleteDebridConfig(): Promise<void> {
   if (!res.ok) throw new Error("delete_failed");
 }
 
-export async function checkDebridCached(infoHashes: string[]): Promise<Record<string, boolean>> {
-  const res = await fetch("/api/debrid/cached", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ infoHashes }),
-  });
-  const data = await res.json();
-  return data.cached || {};
-}
 
 // ── TMDB ──────────────────────────────────────────────────────────
 
@@ -299,10 +296,6 @@ export function fetchContinueWatching(): Promise<{ items: any[] }> {
   return get("/api/watch-history/continue");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function fetchRecentlyWatched(): Promise<{ items: any[] }> {
-  return get("/api/watch-history/recent");
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function fetchSeriesProgress(tmdbId: number): Promise<{ episodes: any[] }> {
@@ -383,10 +376,6 @@ export async function toggleVpn(action: "on" | "off"): Promise<void> {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function verifyVpn(): Promise<any> {
-  return get("/api/vpn/verify");
-}
 
 export async function uploadSubtitle(file: File): Promise<{ url: string }> {
   const res = await fetch(`/api/subtitle/upload?filename=${encodeURIComponent(file.name)}`, {

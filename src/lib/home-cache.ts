@@ -29,13 +29,3 @@ export function setHomeCache(key: string, data: any): void {
   }
 }
 
-export function clearHomeCache(): void {
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(PREFIX)) keys.push(k);
-    }
-    keys.forEach((k) => localStorage.removeItem(k));
-  } catch {}
-}

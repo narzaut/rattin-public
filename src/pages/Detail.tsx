@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus, checkAvailability } from "../lib/api";
+import { fetchMovie, fetchTV, fetchSeason, fetchEpisodeGroups, fetchReviews, searchStreams, playTorrent, backdrop, poster, still, fetchResumePoint, fetchSeriesProgress, checkSaved, toggleSaved, reportWatchProgress, castProfile, getPluginStatus, checkAvailability, fetchYoutubeSearch } from "../lib/api";
 import { ratingColor, formatBytes } from "../lib/utils";
 import { useRemoteMode } from "../lib/PlayerContext";
 import { waitForBridge, mpvSetPoster, mpvSetTitle, mpvSetLoading, mpvSetLoadingStatus } from "../lib/native-bridge";
@@ -15,6 +15,50 @@ function isValidResumePoint(resumePoint: any, seasons: any[]): boolean {
   if (!resumePoint || resumePoint.season <= 0 || !seasons?.length) return false;
   const maxSeason = Math.max(...seasons.map((s) => s.season_number), 0);
   return resumePoint.season <= maxSeason;
+}
+
+// Score a YouTube result for recap relevance. Higher = better.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function scoreRecap(r: any, season: number): number {
+  let score = 0;
+  const title = (r.title || "").toLowerCase();
+  const sn = String(season);
+
+  // Exact season match in title
+  if (new RegExp(`\\bseason\\s*${sn}\\b`, "i").test(title)) score += 12;
+  else if (new RegExp(`\\bs${sn}\\b`, "i").test(title)) score += 8;
+  else if (title.includes(sn)) score += 3;
+
+  // Contains "recap"
+  if (/\brecap\b/i.test(title)) score += 5;
+
+  // Penalize supercuts / "every episode" / "all seasons"
+  if (/every\s*episode|all\s*seasons?|complete\s*series|entire\s*series/i.test(title)) score -= 8;
+
+  // View count boost
+  if (r.viewCount > 10000000) score += 5;
+  else if (r.viewCount > 1000000) score += 3;
+  else if (r.viewCount > 100000) score += 1;
+
+  // Duration: prefer ~3-20 min recaps
+  const dur = parseDuration(r.duration);
+  if (dur >= 180 && dur <= 1200) score += 2;
+  else if (dur > 1200 && dur <= 1800) score += 1;
+
+  // Channel name hints
+  const channel = (r.channelTitle || "").toLowerCase();
+  if (/recap|recaps|rewind|catch.?up|explained/i.test(channel)) score += 2;
+
+  return score;
+}
+
+// Parse YouTube duration string (e.g. "12:34", "1:02:15") to seconds
+function parseDuration(d: string): number {
+  if (!d) return 0;
+  const parts = d.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
 }
 
 export default function Detail() {
@@ -57,6 +101,18 @@ export default function Detail() {
   // Episode groups override for anime with flat TMDB seasons
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [episodeGroupSeasons, setEpisodeGroupSeasons] = useState<any[] | null>(null);
+  // Recaps state
+  const [recapQuery, setRecapQuery] = useState("");
+  const [recapResults, setRecapResults] = useState<any[]>([]);
+  const [recapLoading, setRecapLoading] = useState(false);
+  const [selectedRecap, setSelectedRecap] = useState<any>(null);
+  const [recapExpanded, setRecapExpanded] = useState(false);
+  const [recapMinimized, setRecapMinimized] = useState(false);
+  const [showMoreRecaps, setShowMoreRecaps] = useState(false);
+  const [recapRowsShown, setRecapRowsShown] = useState(1);
+  const [recapColumns, setRecapColumns] = useState(3);
+  const [recapSeason, setRecapSeason] = useState(selectedSeason);
+  const recapsGridRef = useRef<HTMLDivElement>(null);
   const [recoveryKey, setRecoveryKey] = useState(0);
   useRefetchOnRecovery(useCallback(() => setRecoveryKey((k) => k + 1), []));
   const [showPluginPrompt, setShowPluginPrompt] = useState(false);
@@ -69,6 +125,12 @@ export default function Detail() {
     setCastExpanded(false);
     setEpisodeGroupSeasons(null);
     setReviews(null);
+    setRecapResults([]);
+    setSelectedRecap(null);
+    setRecapExpanded(false);
+    setRecapMinimized(false);
+    setShowMoreRecaps(false);
+    setRecapRowsShown(1);
     setShowAllReddit(false);
     setShowAllReviews(false);
     setResumePoint(null);
@@ -425,6 +487,58 @@ export default function Detail() {
     }
   }
 
+  // Fetch YouTube recaps, score by relevance, and sort best-first
+  async function doRecapSearch(query: string) {
+    setRecapLoading(true);
+    try {
+      const results = await fetchYoutubeSearch(query);
+      const scored = results.map((r: any) => ({ ...r, _score: scoreRecap(r, recapSeason) }));
+      scored.sort((a: any, b: any) => b._score - a._score);
+      setRecapResults(scored);
+    } catch {
+      setRecapResults([]);
+    } finally {
+      setRecapLoading(false);
+    }
+  }
+
+  // Sync recap season when the main season dropdown changes
+  useEffect(() => {
+    setRecapSeason(selectedSeason);
+  }, [selectedSeason]);
+
+  // Refresh recaps when the recap season changes
+  useEffect(() => {
+    setRecapResults([]);
+    setSelectedRecap(null);
+    setRecapMinimized(false);
+    setShowMoreRecaps(false);
+    setRecapRowsShown(1);
+    if (recapExpanded && data) {
+      const q = `${data.name || data.title} season ${recapSeason} recap`;
+      setRecapQuery(q);
+      doRecapSearch(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recapSeason]);
+
+  // Measure grid columns from actual rendered width
+  useEffect(() => {
+    if (!showMoreRecaps) return;
+    const grid = recapsGridRef.current;
+    if (!grid) return;
+    const measure = () => {
+      const style = getComputedStyle(grid);
+      const w = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const colWidth = 220 + 14; // minmax(220px,1fr) + gap
+      setRecapColumns(Math.max(1, Math.floor((w + 14) / colWidth)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(grid);
+    return () => ro.disconnect();
+  }, [showMoreRecaps]);
+
   if (!data) {
     return (
       <div className="detail">
@@ -593,6 +707,240 @@ export default function Detail() {
             )}
           </div>
         </div>
+
+        {/* ── Recaps (YouTube, for TV shows) ── */}
+        {type === "tv" && data && (
+          <div className="recaps-section">
+            <button
+              className={`recaps-toggle${recapExpanded ? " expanded" : ""}`}
+              onClick={() => {
+                setRecapExpanded(!recapExpanded);
+                if (!recapExpanded && recapResults.length === 0) {
+                  const q = `${data.name || data.title} season ${recapSeason} recap`;
+                  setRecapQuery(q);
+                  doRecapSearch(q);
+                }
+              }}
+            >
+              <div className="recaps-toggle-left">
+                <svg className="recaps-toggle-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="3" />
+                  <path d="M10 9l5 3-5 3V9z" fill="currentColor" stroke="none" />
+                </svg>
+                <span className="recaps-toggle-label">Recaps</span>
+                <span className="recaps-season-tag">Season {recapSeason}</span>
+              </div>
+              <span className={`recaps-chevron${recapExpanded ? " open" : ""}`}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+              </span>
+            </button>
+            {recapExpanded && (
+              <div className="recaps-body">
+                {/* Search + season selector — always visible */}
+                <div className="recaps-search-row">
+                  <select
+                    className="recaps-season-select"
+                    value={recapSeason}
+                    onChange={(e) => setRecapSeason(Number(e.target.value))}
+                  >
+                    {seasons?.map((s: any) => (
+                      <option key={s.season_number} value={s.season_number}>
+                        Season {s.season_number}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="recaps-search-input"
+                    type="text"
+                    placeholder={`Search recaps — e.g. ${data.name || data.title} season ${recapSeason} recap`}
+                    value={recapQuery}
+                    onChange={(e) => setRecapQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setSelectedRecap(null);
+                        setRecapMinimized(false);
+                        doRecapSearch(recapQuery || `${data.name || data.title} season ${recapSeason} recap`);
+                      }
+                    }}
+                  />
+                  <button
+                    className="recaps-search-btn"
+                    disabled={recapLoading}
+                    onClick={() => {
+                      setSelectedRecap(null);
+                      setRecapMinimized(false);
+                      doRecapSearch(recapQuery || `${data.name || data.title} season ${recapSeason} recap`);
+                    }}
+                  >
+                    Search
+                  </button>
+                </div>
+
+                {/* Loading */}
+                {recapLoading && (
+                  <div className="recaps-loading">
+                    <span className="recaps-spinner" />
+                    Searching YouTube…
+                  </div>
+                )}
+
+                {/* Player — inline, results stay visible */}
+                {!recapLoading && selectedRecap && !recapMinimized && (
+                  <div className="recaps-player">
+                    <div className="recaps-player-bar">
+                      <span className="recaps-player-title">{selectedRecap.title}</span>
+                      <div className="recaps-player-controls">
+                        <button
+                          className="recaps-player-btn"
+                          title="Minimize"
+                          onClick={() => setRecapMinimized(true)}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13H5v-2h14v2z" /></svg>
+                        </button>
+                        <button
+                          className="recaps-player-btn recaps-player-btn-close"
+                          title="Close"
+                          onClick={() => { setSelectedRecap(null); setRecapMinimized(false); }}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                    <iframe
+                      src={`https://www.youtube.com/embed/${selectedRecap.videoId}?autoplay=1`}
+                      title={selectedRecap.title}
+                      style={{ border: "none", width: "100%", aspectRatio: "16/9", display: "block" }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                    <span className="recaps-player-channel">{selectedRecap.channelTitle}{selectedRecap.viewCount > 0 ? ` · ${selectedRecap.viewCount.toLocaleString()} views` : ""}</span>
+                  </div>
+                )}
+
+                {/* Minimized player — fixed bottom-right */}
+                {!recapLoading && selectedRecap && recapMinimized && (
+                  <div className="recaps-mini">
+                    <div className="recaps-mini-video">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${selectedRecap.videoId}?autoplay=1`}
+                        title={selectedRecap.title}
+                        style={{ border: "none", width: "100%", height: "100%", display: "block" }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="recaps-mini-bar">
+                      <span className="recaps-mini-title">{selectedRecap.title}</span>
+                      <button
+                        className="recaps-player-btn"
+                        title="Expand"
+                        onClick={() => setRecapMinimized(false)}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" /></svg>
+                      </button>
+                      <button
+                        className="recaps-player-btn recaps-player-btn-close"
+                        title="Close"
+                        onClick={() => { setSelectedRecap(null); setRecapMinimized(false); }}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Results — always visible (not hidden by player) */}
+                {!recapLoading && recapResults.length > 0 && (
+                  <>
+                    {/* Best result — featured horizontal card (hidden while playing) */}
+                    {(!selectedRecap || recapMinimized) && (
+                      <div className="recaps-best">
+                      <span className="recaps-best-label">Suggested recap</span>
+                      <button
+                        className="recap-featured"
+                        onClick={() => { setSelectedRecap(recapResults[0]); setRecapMinimized(false); }}
+                      >
+                        <div className="recap-featured-thumb">
+                          {recapResults[0].thumbnail ? (
+                            <img src={recapResults[0].thumbnail} alt={recapResults[0].title} loading="lazy" />
+                          ) : (
+                            <div className="recap-thumb-placeholder">▶</div>
+                          )}
+                          <div className="recap-featured-overlay"><span>▶</span></div>
+                          {recapResults[0].duration && <span className="recap-duration">{recapResults[0].duration}</span>}
+                        </div>
+                        <div className="recap-featured-meta">
+                          <span className="recap-featured-title">{recapResults[0].title}</span>
+                          <span className="recap-featured-channel">{recapResults[0].channelTitle}{recapResults[0].viewCount > 0 ? ` · ${recapResults[0].viewCount.toLocaleString()} views` : ""}</span>
+                        </div>
+                      </button>
+                      </div>
+                    )}
+
+                    {/* Other results — behind toggle */}
+                    {recapResults.length > 1 && (
+                      <>
+                        <button
+                          className="recaps-more-toggle"
+                          onClick={() => {
+                            if (!showMoreRecaps) {
+                              setShowMoreRecaps(true);
+                            } else {
+                              setRecapRowsShown((r) => r + 1);
+                            }
+                          }}
+                        >
+                          {!showMoreRecaps ? "Show more recaps" : "Show more"}
+                          {(recapResults.length - 1 > recapRowsShown * recapColumns) && (
+                            <span className={`recaps-chevron${showMoreRecaps ? " open" : ""}`}>
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                            </span>
+                          )}
+                        </button>
+                        {showMoreRecaps && (
+                          <div className="recaps-grid" ref={recapsGridRef}>
+                            {recapResults.slice(1, 1 + recapRowsShown * recapColumns).map((r: any) => (
+                              <button
+                                key={r.videoId}
+                                className={`recap-card${selectedRecap?.videoId === r.videoId ? " active" : ""}`}
+                                onClick={() => { setSelectedRecap(r); setRecapMinimized(false); }}
+                              >
+                                <div className="recap-thumb-wrap">
+                                  {r.thumbnail ? (
+                                    <img className="recap-thumb" src={r.thumbnail} alt={r.title} loading="lazy" />
+                                  ) : (
+                                    <div className="recap-thumb-placeholder">▶</div>
+                                  )}
+                                  {r.duration && <span className="recap-duration">{r.duration}</span>}
+                                  <div className="recap-card-overlay"><span>▶</span></div>
+                                </div>
+                                <div className="recap-meta">
+                                  <span className="recap-title">{r.title}</span>
+                                  <span className="recap-channel">{r.channelTitle}{r.viewCount > 0 ? ` · ${r.viewCount.toLocaleString()} views` : ""}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* Empty state */}
+                {!recapLoading && recapResults.length === 0 && (
+                  <div className="recaps-empty">
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M10 8l6 4-6 4V8z" fill="currentColor" stroke="none" />
+                    </svg>
+                    <span>No recaps found. Try a different search above.</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {type === "tv" && seasons && (
           <div className="detail-seasons">
