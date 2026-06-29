@@ -11,21 +11,9 @@ import type { PluginIndexEntry } from "../../lib/plugins/types.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDir = path.join(__dirname, "..", "fixtures");
 const mockPluginPath = path.join(fixtureDir, "mock-plugin.js");
-const devKeyJson = JSON.parse(
-  readFileSync(path.join(fixtureDir, "dev-private-key.json"), "utf8")
-) as { base64: string; format: "der"; type: "pkcs8" };
 
 // Create a temp directory for plugin storage so tests don't touch ~/.config
 const tempPluginDir = path.join(process.env.TMPDIR || "/tmp", "rattin-test-plugins-" + Date.now());
-
-function signWithDevKey(data: Buffer): Buffer {
-  const privKey = crypto.createPrivateKey({
-    key: Buffer.from(devKeyJson.base64, "base64"),
-    format: devKeyJson.format,
-    type: devKeyJson.type,
-  });
-  return crypto.sign(null, data, privKey);
-}
 
 function makeRegistry(): PluginRegistryImpl {
   return new PluginRegistryImpl({
@@ -33,15 +21,6 @@ function makeRegistry(): PluginRegistryImpl {
     pluginDir: tempPluginDir,
     allowUnsigned: false,
   });
-}
-
-function makeSignedMockPlugin(): { pluginPath: string; signature: Buffer } {
-  const content = readFileSync(mockPluginPath);
-  const signature = signWithDevKey(content);
-  const signedPath = path.join(tempPluginDir, "rattin-sources.js");
-  mkdirSync(tempPluginDir, { recursive: true });
-  writeFileSync(signedPath, content);
-  return { pluginPath: signedPath, signature };
 }
 
 const mockIndexEntry: PluginIndexEntry = {

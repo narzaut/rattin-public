@@ -1,27 +1,12 @@
 // test/helpers/mock-plugin.ts
-import { readFileSync } from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import type {
-  SearchQuery, SearchResult, PluginIndexEntry, PluginStatus,
-  AvailabilityItem, AvailabilityResult, PluginRegistry,
+  SearchQuery, SearchResult, PluginIndexEntry, PluginStatus, AvailabilityItem, AvailabilityResult, PluginRegistry,
 } from "../../lib/plugins/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDir = path.join(__dirname, "..", "fixtures");
-const devKeyJson = JSON.parse(
-  readFileSync(path.join(fixtureDir, "dev-private-key.json"), "utf8")
-) as { base64: string; format: "der"; type: "pkcs8" };
-
-function signWithDevKey(data: Buffer): Buffer {
-  const privKey = crypto.createPrivateKey({
-    key: Buffer.from(devKeyJson.base64, "base64"),
-    format: devKeyJson.format,
-    type: devKeyJson.type,
-  });
-  return crypto.sign(null, data, privKey);
-}
 
 /**
  * A mock PluginRegistry that returns predefined results without spawning a process.
