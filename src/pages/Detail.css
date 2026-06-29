@@ -872,10 +872,7 @@
   cursor: pointer;
   font-family: inherit;
   transition: all var(--transition);
-  /* ponytail: sticky under the fixed navbar, not under it */
-  position: sticky;
-  top: 68px;
-  z-index: 90;
+  /* default: not sticky — mobile-only when expanded */
 }
 
 .recaps-toggle:hover {
@@ -1400,8 +1397,13 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .recaps-toggle {
+  .recaps-toggle.expanded {
+    position: sticky;
     top: 56px;
+    z-index: 90;
+    background: rgba(15, 15, 24, 0.94);
+    backdrop-filter: blur(16px) saturate(1.05);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
   }
   .recaps-search-row {
     flex-direction: column;
